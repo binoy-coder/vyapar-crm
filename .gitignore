@@ -1,0 +1,16 @@
+# Node modules
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Environment local files
+.env
+.env.local
+
+# Database file (Render will auto-generate or use hosted DB)
+# vyapar.db
+
+# OS Generated
+.DS_Store
+Thumbs.db

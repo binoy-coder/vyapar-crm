@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vyapar - Bharat's Smart Business Engine</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif; background: #0A0A0C; color: #E5E5E7; height: 100%; }
+        :root { --bg-primary: #0A0A0C; --bg-secondary: #121316; --bg-tertiary: #1C1C1F; --accent-gold: #F59E0B; --accent-green: #10B981; --accent-red: #EF4444; --text-primary: #FFFFFF; --text-secondary: #A1A1A6; --border-color: #3A3A3F; }
+        .container { max-width: 1400px; margin: 0 auto; height: 100%; display: flex; flex-direction: column; }
+        .navbar { background: var(--bg-secondary); border-bottom: 1px solid var(--border-color); padding: 16px 24px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px; }
+        .logo { font-size: 22px; font-weight: 700; color: var(--accent-gold); letter-spacing: 2px; }
+        .nav-tabs { display: flex; gap: 8px; flex: 1; flex-wrap: wrap; }
+        .nav-tabs button { background: none; border: 1px solid var(--border-color); color: var(--text-secondary); padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 13px; transition: all 0.2s; }
+        .nav-tabs button.active { background: var(--accent-gold); color: #000; border-color: var(--accent-gold); font-weight: 600; }
+        .nav-tabs button:hover:not(.active) { border-color: var(--accent-gold); color: var(--text-primary); }
+        .profile-section { display: flex; align-items: center; gap: 12px; font-size: 12px; }
+        .profile-badge { background: var(--bg-tertiary); padding: 8px 12px; border-radius: 4px; border: 1px solid var(--border-color); }
+        .main-content { flex: 1; overflow-y: auto; padding: 24px; }
+        .main-content::-webkit-scrollbar { width: 8px; }
+        .main-content::-webkit-scrollbar-track { background: var(--bg-tertiary); }
+        .main-content::-webkit-scrollbar-thumb { background: var(--border-color); border-radius: 4px; }
+        .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 32px; }
+        .kpi-card { background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 8px; padding: 24px; transition: all 0.3s ease; cursor: pointer; }
+        .kpi-card:hover { border-color: var(--accent-gold); transform: translateY(-2px); }
+        .kpi-label { font-size: 12px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 12px; font-weight: 600; }
+        .kpi-value { font-size: 32px; font-weight: 700; color: var(--accent-gold); margin-bottom: 8px; }
+        .kpi-meta { font-size: 11px; color: var(--text-secondary); }
+        .section { margin-bottom: 32px; }
+        .section-title { font-size: 18px; font-weight: 700; margin-bottom: 20px; display: flex; gap: 12px; align-items: center; }
+        .section-title::before { content: ''; display: inline-block; width: 4px; height: 24px; background: var(--accent-gold); border-radius: 2px; flex-shrink: 0; }
+        .form-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 16px; }
+        input, select, textarea { background: var(--bg-tertiary); border: 1px solid var(--border-color); color: var(--text-primary); padding: 12px 14px; border-radius: 6px; font-size: 13px; font-family: inherit; transition: all 0.2s; }
+        input::placeholder, textarea::placeholder { color: var(--text-secondary); }
+        input:focus, select:focus, textarea:focus { outline: none; border-color: var(--accent-gold); box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.1); }
+        button { background: var(--accent-gold); color: #000; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 700; transition: all 0.2s; }
+        button:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(245, 158, 11, 0.3); }
+        button:active { transform: translateY(0); }
+        button.secondary { background: transparent; border: 1px solid var(--border-color); color: var(--text-primary); }
+        button.secondary:hover { border-color: var(--accent-gold); background: rgba(245, 158, 11, 0.05); }
+        button.danger { background: var(--accent-red); color: white; }
+        .table-wrapper { overflow-x: auto; margin-bottom: 24px; border: 1px solid var(--border-color); border-radius: 8px; }
+        table { width: 100%; border-collapse: collapse; font-size: 13px; }
+        th { background: var(--bg-tertiary); padding: 14px; text-align: left; font-weight: 700; color: var(--text-secondary); border-bottom: 1px solid var(--border-color); }
+        td { padding: 14px; border-bottom: 1px solid var(--border-color); }
+        tr:hover { background: rgba(245, 158, 11, 0.02); }
+        .badge { display: inline-block; padding: 4px 10px; border-radius: 4px; font-size: 11px; font-weight: 700; text-transform: uppercase; }
+        .badge-paid { background: rgba(16, 185, 129, 0.15); color: var(--accent-green); }
+        .badge-pending { background: rgba(245, 158, 11, 0.15); color: var(--accent-gold); }
+        .badge-low { background: rgba(239, 68, 68, 0.15); color: var(--accent-red); }
+        .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0, 0, 0, 0.8); display: flex; align-items: center; justify-content: center; z-index: 1000; padding: 20px; }
+        .modal-content { background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 12px; padding: 28px; width: 90%; max-width: 650px; max-height: 85vh; overflow-y: auto; }
+        .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; border-bottom: 1px solid var(--border-color); padding-bottom: 16px; }
+        .modal-title { font-size: 20px; font-weight: 700; }
+        .close-btn { background: none; border: none; color: var(--text-secondary); font-size: 24px; cursor: pointer; padding: 0; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; transition: all 0.2s; }
+        .close-btn:hover { color: var(--text-primary); transform: rotate(90deg); }
+        .invoice-container { background: var(--bg-tertiary); border: 1px solid var(--border-color); padding: 40px; border-radius: 8px; font-size: 12px; line-height: 1.8; color: var(--text-primary); }
+        .invoice-header { display: flex; justify-content: space-between; margin-bottom: 40px; border-bottom: 3px solid var(--accent-gold); padding-bottom: 20px; }
+        .invoice-company { font-size: 18px; font-weight: 700; color: var(--accent-gold); }
+        .invoice-number { text-align: right; }
+        .invoice-section { margin-bottom: 28px; }
+        .invoice-section-title { color: var(--accent-gold); font-weight: 700; margin-bottom: 10px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; }
+        .invoice-table { width: 100%; margin: 20px 0; border-collapse: collapse; }
+        .invoice-table th { background: transparent; border-bottom: 2px solid var(--border-color); padding: 10px 0; font-weight: 700; text-align: left; }
+        .invoice-table td { border-bottom: 1px solid var(--border-color); padding: 10px 0; }
+        .invoice-total { margin-top: 32px; padding: 20px; background: var(--bg-secondary); border-radius: 6px; text-align: right; }
+        .total-row { display: flex; justify-content: flex-end; gap: 40px; margin-bottom: 10px; font-size: 13px; }
+        .total-row:last-child { border-top: 2px solid var(--border-color); padding-top: 16px; font-size: 16px; font-weight: 700; }
+        .gst-breakdown { font-size: 11px; color: var(--text-secondary); margin-top: 12px; }
+        .chart-container { background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 8px; padding: 24px; margin-bottom: 24px; }
+        .mini-chart { display: flex; align-items: flex-end; gap: 6px; height: 120px; }
+        .bar { flex: 1; background: linear-gradient(180deg, var(--accent-gold), rgba(245, 158, 11, 0.5)); border-radius: 3px 3px 0 0; min-height: 4px; transition: all 0.2s; }
+        .bar:hover { opacity: 1.2; filter: brightness(1.1); }
+        .button-row { display: flex; gap: 12px; margin-top: 20px; flex-wrap: wrap; }
+        .empty-state { text-align: center; padding: 60px 20px; color: var(--text-secondary); }
+        @media (max-width: 768px) { .navbar { flex-direction: column; gap: 12px; } .kpi-grid { grid-template-columns: 1fr 1fr; } .form-row { grid-template-columns: 1fr; } }
+        @media print { .navbar, .main-content > :not(.invoice-container), .button-row { display: none !important; } .invoice-container { border: none; background: white; color: black; } }
+        .success-message { position: fixed; top: 20px; right: 20px; background: var(--accent-green); color: white; padding: 14px 20px; border-radius: 6px; z-index: 2000; animation: slideIn 0.3s ease; }
+        @keyframes slideIn { from { transform: translateX(400px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="navbar">
+        <div class="logo">वायपार</div>
+        <div class="nav-tabs">
+            <button class="nav-btn active" data-tab="dashboard">📊 Dashboard</button>
+            <button class="nav-btn" data-tab="inventory">📦 Inventory</button>
+            <button class="nav-btn" data-tab="crm">👥 Customers</button>
+            <button class="nav-btn" data-tab="billing">💳 Billing</button>
+            <button class="nav-btn" data-tab="invoices">📄 Invoices</button>
+            <button class="nav-btn" data-tab="reports">📈 Reports</button>
+        </div>
+        <div class="profile-section">
+            <div class="profile-badge">Vyapar Solutions Pvt Ltd</div>
+        </div>
+    </div>
+
+    <div class="main-content" id="main-content">
+        <div class="tab-content" id="dashboard-tab">
+            <div class="kpi-grid">
+                <div class="kpi-card"><div class="kpi-label">Today's Revenue</div><div class="kpi-value" id="todayRevenue">₹0.00</div><div class="kpi-meta">Bills: <span id="todayBills">0</span></div></div>
+                <div class="kpi-card"><div class="kpi-label">Pending Receivables</div><div class="kpi-value" id="pendingReceivables">₹0.00</div><div class="kpi-meta">Outstanding</div></div>
+                <div class="kpi-card"><div class="kpi-label">Low Stock Items</div><div class="kpi-value" id="lowStockCount">0</div><div class="kpi-meta">Below 5 units</div></div>
+                <div class="kpi-card"><div class="kpi-label">Total Customers</div><div class="kpi-value" id="totalCustomers">0</div><div class="kpi-meta">Active</div></div>
+            </div>
+            <div class="chart-container"><div class="section-title">Daily Sales (7 Days)</div><div class="mini-chart" id="dailyChart"></div></div>
+            <div class="section"><div class="section-title">Recent Invoices</div><div class="table-wrapper"><table><thead><tr><th>Invoice #</th><th>Customer</th><th>Amount</th><th>Status</th><th>Date</th></tr></thead><tbody id="recentInvoices"></tbody></table></div></div>
+        </div>
+
+        <div class="tab-content" id="inventory-tab" style="display:none;">
+            <div class="section"><div style="display: flex; justify-content: space-between;"><div class="section-title" style="margin-bottom: 0;">Products</div><button onclick="app.showAddProductModal()">+ Add</button></div></div>
+            <div class="form-row"><input type="text" id="searchProducts" placeholder="Search products..." style="grid-column: 1/-1;"></div>
+            <div class="table-wrapper"><table><thead><tr><th>Name</th><th>HSN</th><th>SKU</th><th>Buy Price</th><th>Sell Price</th><th>Stock</th><th>Status</th><th>Actions</th></tr></thead><tbody id="productList"></tbody></table></div>
+        </div>
+
+        <div class="tab-content" id="crm-tab" style="display:none;">
+            <div class="section"><div style="display: flex; justify-content: space-between;"><div class="section-title" style="margin-bottom: 0;">Customers</div><button onclick="app.showAddCustomerModal()">+ Add</button></div></div>
+            <div class="form-row"><input type="text" id="searchCustomers" placeholder="Search customers..." style="grid-column: 1/-1;"></div>
+            <div class="table-wrapper"><table><thead><tr><th>Name</th><th>Mobile</th><th>City/State</th><th>Outstanding</th><th>Total Purchased</th><th>Actions</th></tr></thead><tbody id="customerList"></tbody></table></div>
+        </div>
+
+        <div class="tab-content" id="billing-tab" style="display:none;">
+            <div class="section"><div class="section-title">POS Billing Terminal</div></div>
+            <div class="form-row"><select id="billCustomer" onchange="app.selectBillCustomer()"><option value="">Select Customer</option></select><input type="text" id="billCustomerNew" placeholder="Or new customer"></div>
+            <div class="form-row"><select id="billProduct" onchange="app.addBillItem()"><option value="">Add Product</option></select></div>
+            <div class="table-wrapper"><table><thead><tr><th>Product</th><th>HSN</th><th>Price</th><th>Qty</th><th>Tax</th><th>Total</th><th>Remove</th></tr></thead><tbody id="billItems"></tbody></table></div>
+            <div style="background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 8px; padding: 24px; margin-bottom: 24px;">
+                <div style="display: grid; grid-template-columns: 1fr 200px; gap: 32px;">
+                    <div><div style="display: flex; justify-content: space-between; margin-bottom: 12px;"><span style="color: var(--text-secondary);">Subtotal:</span><span id="billSubtotal">₹0.00</span></div><div style="display: flex; justify-content: space-between; margin-bottom: 12px;"><span style="color: var(--text-secondary);">CGST (9%):</span><span id="billCGST">₹0.00</span></div><div style="display: flex; justify-content: space-between; margin-bottom: 16px; border-bottom: 1px solid var(--border-color); padding-bottom: 12px;"><span style="color: var(--text-secondary);">SGST (9%):</span><span id="billSGST">₹0.00</span></div><div style="display: flex; justify-content: space-between; font-size: 18px; font-weight: 700; color: var(--accent-gold);"><span>Total:</span><span id="billTotal">₹0.00</span></div></div>
+                    <div><label style="display: block; margin-bottom: 12px; font-size: 12px; color: var(--text-secondary); font-weight: 600;">Tax Type</label><select id="billState" onchange="app.updateBillTax()"><option value="intrastate">Intrastate</option><option value="interstate">Interstate</option></select></div>
+                </div>
+            </div>
+            <div class="button-row"><button onclick="app.generateBill()">✓ Generate Bill</button><button class="secondary" onclick="app.resetBill()">Reset</button></div>
+        </div>
+
+        <div class="tab-content" id="invoices-tab" style="display:none;">
+            <div class="section"><div class="section-title">Invoice History</div></div>
+            <div class="table-wrapper"><table><thead><tr><th>Invoice #</th><th>Customer</th><th>Amount</th><th>Tax</th><th>Status</th><th>Date</th><th>Actions</th></tr></thead><tbody id="allInvoices"></tbody></table></div>
+        </div>
+
+        <div class="tab-content" id="reports-tab" style="display:none;">
+            <div class="section"><div class="section-title">Business Analytics</div></div>
+            <div class="kpi-grid">
+                <div class="kpi-card"><div class="kpi-label">Total Revenue</div><div class="kpi-value" id="reportRevenue">₹0.00</div></div>
+                <div class="kpi-card"><div class="kpi-label">GST Collected</div><div class="kpi-value" id="reportGST">₹0.00</div></div>
+                <div class="kpi-card"><div class="kpi-label">Invoices</div><div class="kpi-value" id="reportInvoices">0</div></div>
+                <div class="kpi-card"><div class="kpi-label">Avg Invoice</div><div class="kpi-value" id="reportAvgInvoice">₹0.00</div></div>
+            </div>
+            <div class="section"><div class="section-title">Top Products</div><div class="table-wrapper"><table><thead><tr><th>Product</th><th>Units</th><th>Revenue</th><th>% Total</th></tr></thead><tbody id="topProducts"></tbody></table></div></div>
+        </div>
+    </div>
+</div>
+
+<div id="addProductModal" class="modal-overlay" style="display:none;"><div class="modal-content"><div class="modal-header"><div class="modal-title">Add Product</div><button class="close-btn" onclick="app.closeModal('addProductModal')">&times;</button></div><div class="form-row"><input type="text" id="productName" placeholder="Item Name"><input type="text" id="productHSN" placeholder="HSN Code"></div><div class="form-row"><input type="text" id="productSKU" placeholder="SKU"><input type="number" id="productPurchasePrice" placeholder="Purchase Price" step="0.01"></div><div class="form-row"><input type="number" id="productSellingPrice" placeholder="Selling Price" step="0.01"><input type="number" id="productStock" placeholder="Stock" step="1"></div><div class="button-row"><button onclick="app.saveProduct()">Save</button><button class="secondary" onclick="app.closeModal('addProductModal')">Cancel</button></div></div></div>
+
+<div id="addCustomerModal" class="modal-overlay" style="display:none;"><div class="modal-content"><div class="modal-header"><div class="modal-title">Add Customer</div><button class="close-btn" onclick="app.closeModal('addCustomerModal')">&times;</button></div><div class="form-row"><input type="text" id="customerName" placeholder="Name"><input type="tel" id="customerMobile" placeholder="Mobile"></div><div class="form-row"><input type="text" id="customerCity" placeholder="City"><input type="text" id="customerState" placeholder="State"></div><div class="button-row"><button onclick="app.saveCustomer()">Add</button><button class="secondary" onclick="app.closeModal('addCustomerModal')">Cancel</button></div></div></div>
+
+<div id="invoiceViewModal" class="modal-overlay" style="display:none;"><div class="modal-content"><div class="modal-header"><div class="modal-title">Tax Invoice</div><button class="close-btn" onclick="app.closeModal('invoiceViewModal')">&times;</button></div><div id="invoicePreview" style="margin-bottom: 20px;"></div><div class="button-row"><button onclick="window.print()">🖨️ Print</button><button class="secondary" onclick="app.closeModal('invoiceViewModal')">Close</button></div></div></div>
+
+<script>
+const app = {
+    products: [], customers: [], invoices: [], currentBill: { items: [], customerId: null, state: 'intrastate' },
+    init() { this.loadData(); this.setupEventListeners(); this.renderDashboard(); },
+    loadData() { const saved = localStorage.getItem('vyaparData'); if (saved) { const data = JSON.parse(saved); this.products = data.products || []; this.customers = data.customers || []; this.invoices = data.invoices || []; } else { this.seedDemoData(); } },
+    seedDemoData() {
+        this.products = [
+            { id: 1, name: 'Thermal Barcode Scanner', hsn: '8471', sku: 'TBS-001', purchasePrice: 4500, sellingPrice: 6999, stock: 12, category: 'Hardware' },
+            { id: 2, name: 'Billing POS Printer', hsn: '8443', sku: 'BPP-001', purchasePrice: 8000, sellingPrice: 12999, stock: 3, category: 'Hardware' },
+            { id: 3, name: 'Label Roll Pack', hsn: '4821', sku: 'LRP-001', purchasePrice: 150, sellingPrice: 249, stock: 45, category: 'Consumables' },
+            { id: 4, name: 'Cash Drawer', hsn: '8303', sku: 'CD-001', purchasePrice: 3500, sellingPrice: 5499, stock: 2, category: 'Hardware' }
+        ];
+        this.customers = [
+            { id: 1, name: 'Rahul Gupta', mobile: '+91 98765 43210', city: 'Mumbai', state: 'Maharashtra', outstandingBalance: 5000, totalPurchased: 25000 },
+            { id: 2, name: 'Anjali Paul', mobile: '+91 89765 43210', city: 'New Delhi', state: 'Delhi', outstandingBalance: 0, totalPurchased: 18500 },
+            { id: 3, name: 'Vikram Sarin', mobile: '+91 79765 43210', city: 'Bengaluru', state: 'Karnataka', outstandingBalance: 12000, totalPurchased: 45000 }
+        ];
+        this.invoices = [
+            { id: 'INV-2024-001', customerId: 1, customerName: 'Rahul Gupta', items: [{ productId: 1, name: 'Thermal Barcode Scanner', qty: 1, price: 6999, hsn: '8471' }], subtotal: 6999, cgst: 630, sgst: 630, igst: 0, total: 8259, status: 'Paid', date: new Date(Date.now() - 5*24*60*60*1000).toISOString().split('T')[0], state: 'intrastate' }
+        ];
+        this.saveData();
+    },
+    saveData() { localStorage.setItem('vyaparData', JSON.stringify({ products: this.products, customers: this.customers, invoices: this.invoices })); },
+    setupEventListeners() {
+        document.querySelectorAll('.nav-btn').forEach(btn => { btn.addEventListener('click', (e) => this.switchTab(e.target.dataset.tab)); });
+        document.getElementById('searchProducts')?.addEventListener('input', (e) => this.filterProducts(e.target.value));
+        document.getElementById('searchCustomers')?.addEventListener('input', (e) => this.filterCustomers(e.target.value));
+    },
+    switchTab(tabName) {
+        document.querySelectorAll('.tab-content').forEach(t => t.style.display = 'none');
+        document.getElementById(tabName + '-tab').style.display = 'block';
+        document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+        document.querySelector(`[data-tab="${tabName}"]`).classList.add('active');
+        if (tabName === 'inventory') this.renderProducts();
+        if (tabName === 'crm') this.renderCustomers();
+        if (tabName === 'billing') this.renderBillingForm();
+        if (tabName === 'invoices') this.renderInvoices();
+        if (tabName === 'reports') this.renderReports();
+    },
+    renderDashboard() {
+        const today = new Date().toISOString().split('T')[0];
+        const todayInvoices = this.invoices.filter(inv => inv.date === today);
+        const todayRevenue = todayInvoices.reduce((sum, inv) => sum + inv.total, 0);
+        const pendingTotal = this.invoices.filter(inv => inv.status === 'Pending').reduce((sum, inv) => sum + inv.total, 0);
+        const lowStock = this.products.filter(p => p.stock < 5).length;
+        document.getElementById('todayRevenue').textContent = this.formatCurrency(todayRevenue);
+        document.getElementById('todayBills').textContent = todayInvoices.length;
+        document.getElementById('pendingReceivables').textContent = this.formatCurrency(pendingTotal);
+        document.getElementById('lowStockCount').textContent = lowStock;
+        document.getElementById('totalCustomers').textContent = this.customers.length;
+        const days = 7; const dailyRevenue = {};
+        for (let i = days-1; i >= 0; i--) {
+            const date = new Date(Date.now() - i*24*60*60*1000).toISOString().split('T')[0];
+            dailyRevenue[date] = this.invoices.filter(inv => inv.date === date).reduce((sum, inv) => sum + inv.total, 0);
+        }
+        const maxRevenue = Math.max(...Object.values(dailyRevenue), 10000);
+        const chartHtml = Object.values(dailyRevenue).map(rev => { const height = (rev / maxRevenue) * 100; return `<div class="bar" style="height: ${height}%;"></div>`; }).join('');
+        document.getElementById('dailyChart').innerHTML = chartHtml;
+        const recent = this.invoices.slice(-5).reverse();
+        document.getElementById('recentInvoices').innerHTML = recent.length ? recent.map(inv => `<tr><td><strong>${inv.id}</strong></td><td>${inv.customerName}</td><td>${this.formatCurrency(inv.total)}</td><td><span class="badge badge-${inv.status.toLowerCase()}">${inv.status}</span></td><td>${inv.date}</td></tr>`).join('') : '<tr><td colspan="5" class="empty-state">No invoices</td></tr>';
+    },
+    renderProducts() {
+        const tbody = document.getElementById('productList');
+        tbody.innerHTML = this.products.length ? this.products.map(p => `<tr><td>${p.name}</td><td>${p.hsn}</td><td>${p.sku}</td><td>${this.formatCurrency(p.purchasePrice)}</td><td>${this.formatCurrency(p.sellingPrice)}</td><td>${p.stock}</td><td>${p.stock < 5 ? '<span class="badge badge-low">Low</span>' : '<span class="badge badge-paid">OK</span>'}</td><td><button class="danger" onclick="app.deleteProduct(${p.id})">Delete</button></td></tr>`).join('') : '<tr><td colspan="8" class="empty-state">No products</td></tr>';
+    },
+    renderCustomers() {
+        const tbody = document.getElementById('customerList');
+        tbody.innerHTML = this.customers.length ? this.customers.map(c => `<tr><td><strong>${c.name}</strong></td><td>${c.mobile}</td><td>${c.city}, ${c.state}</td><td>${this.formatCurrency(c.outstandingBalance)}</td><td>${this.formatCurrency(c.totalPurchased)}</td><td><button class="secondary">Edit</button></td></tr>`).join('') : '<tr><td colspan="6" class="empty-state">No customers</td></tr>';
+    },
+    renderBillingForm() {
+        document.getElementById('billCustomer').innerHTML = '<option value="">Select Customer</option>' + this.customers.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+        document.getElementById('billProduct').innerHTML = '<option value="">Add Product</option>' + this.products.map(p => `<option value="${p.id}">${p.name} (₹${this.formatCurrency(p.sellingPrice)})</option>`).join('');
+    },
+    addBillItem() {
+        const productId = parseInt(document.getElementById('billProduct').value);
+        if (!productId) return;
+        const product = this.products.find(p => p.id === productId);
+        if (!product || product.stock <= 0) { alert('Out of stock'); return; }
+        const existing = this.currentBill.items.find(item => item.productId === productId);
+        if (existing) { existing.qty = Math.min(existing.qty + 1, product.stock); } else {
+            this.currentBill.items.push({ productId, name: product.name, hsn: product.hsn, price: product.sellingPrice, qty: 1 });
+        }
+        this.renderBillItems();
+        document.getElementById('billProduct').value = '';
+    },
+    renderBillItems() {
+        const tbody = document.getElementById('billItems');
+        tbody.innerHTML = this.currentBill.items.length ? this.currentBill.items.map((item, idx) => `<tr><td>${item.name}</td><td>${item.hsn}</td><td>${this.formatCurrency(item.price)}</td><td><input type="number" value="${item.qty}" min="1" style="width: 60px; padding: 6px;" onchange="app.updateBillQty(${idx}, this.value)"></td><td>18%</td><td>${this.formatCurrency(item.price * item.qty)}</td><td><button class="danger" onclick="app.removeBillItem(${idx})">Remove</button></td></tr>`).join('') : '<tr><td colspan="7" class="empty-state">Add products</td></tr>';
+        this.updateBillTotals();
+    },
+    updateBillQty(idx, qty) { this.currentBill.items[idx].qty = Math.max(1, parseInt(qty) || 1); this.renderBillItems(); },
+    removeBillItem(idx) { this.currentBill.items.splice(idx, 1); this.renderBillItems(); },
+    updateBillTax() { this.currentBill.state = document.getElementById('billState').value; this.updateBillTotals(); },
+    updateBillTotals() {
+        const subtotal = this.currentBill.items.reduce((sum, item) => sum + (item.price * item.qty), 0);
+        let cgst = 0, sgst = 0, igst = 0;
+        if (this.currentBill.state === 'intrastate') { cgst = subtotal * 0.09; sgst = subtotal * 0.09; } else { igst = subtotal * 0.18; }
+        const total = subtotal + cgst + sgst + igst;
+        document.getElementById('billSubtotal').textContent = this.formatCurrency(subtotal);
+        document.getElementById('billCGST').textContent = this.formatCurrency(cgst);
+        document.getElementById('billSGST').textContent = this.formatCurrency(sgst);
+        document.getElementById('billTotal').textContent = this.formatCurrency(total);
+    },
+    generateBill() {
+        if (!this.currentBill.items.length) { alert('Add products'); return; }
+        let customerId = parseInt(document.getElementById('billCustomer').value || 0);
+        if (!customerId) {
+            const newCustomerName = document.getElementById('billCustomerNew').value.trim();
+            if (!newCustomerName) { alert('Select or enter customer'); return; }
+            const newCustomer = { id: Math.max(...this.customers.map(c => c.id), 0) + 1, name: newCustomerName, mobile: '', city: '', state: '', outstandingBalance: 0, totalPurchased: 0 };
+            this.customers.push(newCustomer);
+            customerId = newCustomer.id;
+        }
+        const subtotal = this.currentBill.items.reduce((sum, item) => sum + (item.price * item.qty), 0);
+        let cgst = 0, sgst = 0, igst = 0;
+        if (this.currentBill.state === 'intrastate') { cgst = subtotal * 0.09; sgst = subtotal * 0.09; } else { igst = subtotal * 0.18; }
+        const total = subtotal + cgst + sgst + igst;
+        const customer = this.customers.find(c => c.id === customerId);
+        const invoice = { id: `INV-2024-${String(this.invoices.length + 1).padStart(3, '0')}`, customerId, customerName: customer.name, items: [...this.currentBill.items], subtotal, cgst, sgst, igst, total, status: 'Pending', date: new Date().toISOString().split('T')[0], state: this.currentBill.state };
+        this.invoices.push(invoice);
+        this.currentBill.items.forEach(item => { const product = this.products.find(p => p.id === item.productId); if (product) product.stock -= item.qty; });
+        this.saveData();
+        this.showSuccessMessage('Invoice generated!');
+        this.viewInvoice(invoice);
+        this.resetBill();
+    },
+    resetBill() { this.currentBill = { items: [], customerId: null, state: 'intrastate' }; document.getElementById('billCustomer').value = ''; document.getElementById('billCustomerNew').value = ''; document.getElementById('billState').value = 'intrastate'; this.renderBillItems(); },
+    selectBillCustomer() { this.currentBill.customerId = parseInt(document.getElementById('billCustomer').value || 0); },
+    renderInvoices() {
+        const tbody = document.getElementById('allInvoices');
+        tbody.innerHTML = this.invoices.length ? this.invoices.map((inv, idx) => `<tr><td><strong>${inv.id}</strong></td><td>${inv.customerName}</td><td>${this.formatCurrency(inv.total)}</td><td>${this.formatCurrency(inv.cgst + inv.sgst + inv.igst)}</td><td><span class="badge badge-${inv.status.toLowerCase()}">${inv.status}</span></td><td>${inv.date}</td><td><button class="secondary" onclick="app.viewInvoice(${idx})">View</button></td></tr>`).join('') : '<tr><td colspan="7" class="empty-state">No invoices</td></tr>';
+    },
+    viewInvoice(invOrIdx) {
+        const invoice = typeof invOrIdx === 'object' ? invOrIdx : this.invoices[invOrIdx];
+        const html = `<div class="invoice-container"><div class="invoice-header"><div><div class="invoice-company">Vyapar Solutions Pvt Ltd</div><div style="font-size: 11px; color: var(--text-secondary); margin-top: 12px; line-height: 1.6;">GSTIN: 18AABCR1234H1Z0<br>PAN: AABCR1234H<br>Vyapar Bhawan, Business Park<br>Navi Mumbai, Maharashtra 400703</div></div><div class="invoice-number"><div style="font-size: 16px; font-weight: 700; color: var(--accent-gold); margin-bottom: 12px;">${invoice.id}</div><div style="font-size: 11px; color: var(--text-secondary); line-height: 1.6;"><strong>Date:</strong> ${invoice.date}</div></div></div><div style="display: grid; grid-template-columns: 1fr 1fr; gap: 32px; margin-bottom: 32px; font-size: 11px;"><div><div class="invoice-section-title">Bill To</div><div style="color: var(--text-primary); font-weight: 600;">${invoice.customerName}</div></div><div><div class="invoice-section-title">Amount Due</div><div style="color: var(--accent-gold); font-size: 16px; font-weight: 700;">${this.formatCurrency(invoice.total)}</div></div></div><table class="invoice-table"><thead><tr><th>Description</th><th>HSN</th><th>Qty</th><th>Price</th><th>Amount</th></tr></thead><tbody>${invoice.items.map(item => `<tr><td>${item.name}</td><td>${item.hsn}</td><td>${item.qty}</td><td>${this.formatCurrency(item.price)}</td><td>${this.formatCurrency(item.price * item.qty)}</td></tr>`).join('')}</tbody></table><div class="invoice-total"><div class="total-row"><span>Subtotal:</span><span>${this.formatCurrency(invoice.subtotal)}</span></div><div class="total-row"><span>CGST (9%):</span><span>${this.formatCurrency(invoice.cgst)}</span></div><div class="total-row"><span>SGST (9%):</span><span>${this.formatCurrency(invoice.sgst)}</span></div><div class="total-row" style="color: var(--accent-gold);"><span>TOTAL:</span><span>${this.formatCurrency(invoice.total)}</span></div></div><div style="margin-top: 32px; padding-top: 24px; border-top: 1px solid var(--border-color); font-size: 10px; color: var(--text-secondary); text-align: center;">GST Invoice - Digital | Thank you for business!</div></div>`;
+        document.getElementById('invoicePreview').innerHTML = html;
+        this.showModal('invoiceViewModal');
+    },
+    renderReports() {
+        const totalRevenue = this.invoices.reduce((sum, inv) => sum + inv.total, 0);
+        const totalGST = this.invoices.reduce((sum, inv) => sum + inv.cgst + inv.sgst + inv.igst, 0);
+        const avgInvoice = this.invoices.length ? totalRevenue / this.invoices.length : 0;
+        document.getElementById('reportRevenue').textContent = this.formatCurrency(totalRevenue);
+        document.getElementById('reportGST').textContent = this.formatCurrency(totalGST);
+        document.getElementById('reportInvoices').textContent = this.invoices.length;
+        document.getElementById('reportAvgInvoice').textContent = this.formatCurrency(avgInvoice);
+        const productSales = {};
+        this.invoices.forEach(inv => { inv.items.forEach(item => { if (!productSales[item.productId]) { productSales[item.productId] = { name: item.name, qty: 0, revenue: 0 }; } productSales[item.productId].qty += item.qty; productSales[item.productId].revenue += item.price * item.qty; }); });
+        const topProds = Object.values(productSales).sort((a, b) => b.revenue - a.revenue).slice(0, 5);
+        document.getElementById('topProducts').innerHTML = topProds.length ? topProds.map(prod => `<tr><td>${prod.name}</td><td>${prod.qty}</td><td>${this.formatCurrency(prod.revenue)}</td><td>${((prod.revenue / (totalRevenue || 1)) * 100).toFixed(1)}%</td></tr>`).join('') : '<tr><td colspan="4" class="empty-state">No data</td></tr>';
+    },
+    showAddProductModal() { this.showModal('addProductModal'); },
+    showAddCustomerModal() { this.showModal('addCustomerModal'); },
+    showModal(id) { document.getElementById(id).style.display = 'flex'; },
+    closeModal(id) { document.getElementById(id).style.display = 'none'; },
+    saveProduct() {
+        const name = document.getElementById('productName').value.trim();
+        const hsn = document.getElementById('productHSN').value.trim();
+        const sku = document.getElementById('productSKU').value.trim();
+        const purchasePrice = parseFloat(document.getElementById('productPurchasePrice').value || 0);
+        const sellingPrice = parseFloat(document.getElementById('productSellingPrice').value || 0);
+        const stock = parseInt(document.getElementById('productStock').value || 0);
+        if (!name || !hsn || !sku || purchasePrice <= 0 || sellingPrice <= 0 || stock < 0) { alert('Fill all fields'); return; }
+        const product = { id: Math.max(...this.products.map(p => p.id), 0) + 1, name, hsn, sku, purchasePrice, sellingPrice, stock, category: 'General' };
+        this.products.push(product);
+        this.saveData();
+        this.closeModal('addProductModal');
+        this.renderProducts();
+        this.renderBillingForm();
+        this.showSuccessMessage('Product added!');
+        document.getElementById('productName').value = '';
+        document.getElementById('productHSN').value = '';
+        document.getElementById('productSKU').value = '';
+        document.getElementById('productPurchasePrice').value = '';
+        document.getElementById('productSellingPrice').value = '';
+        document.getElementById('productStock').value = '';
+    },
+    saveCustomer() {
+        const name = document.getElementById('customerName').value.trim();
+        const mobile = document.getElementById('customerMobile').value.trim();
+        const city = document.getElementById('customerCity').value.trim();
+        const state = document.getElementById('customerState').value.trim();
+        if (!name || !mobile) { alert('Name and mobile required'); return; }
+        const customer = { id: Math.max(...this.customers.map(c => c.id), 0) + 1, name, mobile, city, state, outstandingBalance: 0, totalPurchased: 0 };
+        this.customers.push(customer);
+        this.saveData();
+        this.closeModal('addCustomerModal');
+        this.renderCustomers();
+        this.renderBillingForm();
+        this.showSuccessMessage('Customer added!');
+        document.getElementById('customerName').value = '';
+        document.getElementById('customerMobile').value = '';
+        document.getElementById('customerCity').value = '';
+        document.getElementById('customerState').value = '';
+    },
+    deleteProduct(id) { if (confirm('Delete product?')) { this.products = this.products.filter(p => p.id !== id); this.saveData(); this.renderProducts(); this.renderBillingForm(); this.showSuccessMessage('Deleted!'); } },
+    filterProducts(query) {
+        const filtered = this.products.filter(p => p.name.toLowerCase().includes(query.toLowerCase()) || p.sku.toLowerCase().includes(query.toLowerCase()) || p.hsn.toLowerCase().includes(query.toLowerCase()));
+        const tbody = document.getElementById('productList');
+        tbody.innerHTML = filtered.length ? filtered.map(p => `<tr><td>${p.name}</td><td>${p.hsn}</td><td>${p.sku}</td><td>${this.formatCurrency(p.purchasePrice)}</td><td>${this.formatCurrency(p.sellingPrice)}</td><td>${p.stock}</td><td>${p.stock < 5 ? '<span class="badge badge-low">Low</span>' : '<span class="badge badge-paid">OK</span>'}</td><td><button class="danger" onclick="app.deleteProduct(${p.id})">Delete</button></td></tr>`).join('') : '<tr><td colspan="8" class="empty-state">Not found</td></tr>';
+    },
+    filterCustomers(query) {
+        const filtered = this.customers.filter(c => c.name.toLowerCase().includes(query.toLowerCase()) || c.mobile.includes(query));
+        const tbody = document.getElementById('customerList');
+        tbody.innerHTML = filtered.length ? filtered.map(c => `<tr><td><strong>${c.name}</strong></td><td>${c.mobile}</td><td>${c.city}, ${c.state}</td><td>${this.formatCurrency(c.outstandingBalance)}</td><td>${this.formatCurrency(c.totalPurchased)}</td><td><button class="secondary">Edit</button></td></tr>`).join('') : '<tr><td colspan="6" class="empty-state">Not found</td></tr>';
+    },
+    showSuccessMessage(message) { const msg = document.createElement('div'); msg.className = 'success-message'; msg.textContent = message; document.body.appendChild(msg); setTimeout(() => msg.remove(), 3000); },
+    formatCurrency(amount) { return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(amount); }
+};
+app.init();
+</script>
+</body>
+</html>
