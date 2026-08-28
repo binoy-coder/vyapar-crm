@@ -2,28 +2,29 @@
  * ==========================================================
  * VYAPAR CRM & ERP - FRONTEND CORE CONTROLLER
  * Bharat's Smart Business Management Engine
- * Connected REST API Client with Offline & Cloud Support
+ * Connected REST API Client
  * ==========================================================
  */
+
+const nativeFetch = window.fetch.bind(window);
+const loginPage = () => localStorage.getItem('vyapar_login_role') === 'staff' ? 'staff-login.html' : 'login.html';
+window.fetch = async (resource, options = {}) => {
+    const response = await nativeFetch(resource, { credentials: 'include', ...options });
+    if (response.status === 401) window.location.replace(loginPage());
+    return response;
+};
 
 // Global App Configuration
 const VyaparApp = {
     // API Configuration
     getApiUrl() {
+        if (window.VYAPAR_API_URL?.trim()) return window.VYAPAR_API_URL.trim().replace(/\/+$/, '');
         const savedUrl = localStorage.getItem('vyapar_api_url');
         if (savedUrl && savedUrl.trim()) {
             return savedUrl.trim().replace(/\/+$/, '');
         }
-        // If hosted on Render or unified server (same origin)
-        if (window.location.port === '5000' || window.location.port === '3000') {
-            return `${window.location.origin}/api`;
-        }
-        // Localhost default
-        if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
-            return 'http://localhost:5000/api';
-        }
-        // Production fallback (or Relative if reverse-proxied)
-        return window.location.origin.includes('netlify') ? 'http://localhost:5000/api' : `${window.location.origin}/api`;
+        // Same-origin backend or reverse proxy. Split-port development can use config.js.
+        return `${window.location.origin}/api`;
     },
 
     setApiUrl(url) {
@@ -56,6 +57,11 @@ const VyaparApp = {
             items: [] // { productId, name, hsn, price, qty }
         },
         isOnline: false,
+        user: null,
+        changeRequests: [],
+        accessRequests: [],
+        staff: [],
+        reviewingRequest: null,
         activeTab: 'dashboard',
         editingProductId: null,
         editingCustomerId: null
@@ -63,13 +69,145 @@ const VyaparApp = {
 
     // Initialize Application
     async init() {
+        if (!await this.ensureAuthenticated()) return;
         this.bindEvents();
+        this.applyRoleInterface();
         await this.checkApiHealth();
         await this.refreshAllData();
         this.renderAll();
         
         // Periodic Health Check every 30s
         setInterval(() => this.checkApiHealth(), 30000);
+    },
+
+    async ensureAuthenticated() {
+        try {
+            const response = await fetch(`${this.getApiUrl()}/auth/me`, { cache: 'no-store' });
+            if (!response.ok) throw new Error('Authentication required');
+            const data = await response.json();
+            localStorage.setItem('vyapar_login_role', data.user.role);
+            if (data.user.mustChangePassword || data.user.mustSetPin) {
+                window.location.replace(`${data.user.role === 'staff' ? 'staff-login.html' : 'login.html'}?setup=1`);
+                return false;
+            }
+            this.state.user = data.user;
+            return true;
+        } catch (_) {
+            window.location.replace(loginPage());
+            return false;
+        }
+    },
+
+    isAdmin() {
+        return this.state.user?.role === 'admin';
+    },
+
+    accessModules: {
+        inventory: 'Inventory',
+        customers: 'Customers',
+        billing: 'Billing',
+        invoices: 'Invoices',
+        settings: 'Settings'
+    },
+
+    moduleForChange(meta) {
+        if (meta.entityType === 'product') return 'inventory';
+        if (meta.entityType === 'customer' || meta.entityType === 'customer_payment') return 'customers';
+        if (meta.entityType === 'invoice') return meta.operation === 'create' ? 'billing' : 'invoices';
+        if (meta.entityType === 'settings') return 'settings';
+        return null;
+    },
+
+    hasModuleAccess(module) {
+        return this.isAdmin() || Boolean(module && this.state.user?.permissions?.includes(module));
+    },
+
+    mutationActionLabel(module, directLabel, requestLabel) {
+        return this.hasModuleAccess(module) ? directLabel : requestLabel;
+    },
+
+    applyRoleInterface() {
+        const user = this.state.user;
+        if (!user) return;
+        document.querySelectorAll('[data-admin-only]').forEach(element => {
+            element.hidden = !this.isAdmin();
+        });
+        document.querySelectorAll('[data-staff-only]').forEach(element => {
+            element.hidden = this.isAdmin();
+        });
+        const name = document.getElementById('currentUserName');
+        const role = document.getElementById('currentUserRole');
+        if (name) name.textContent = user.name;
+        if (role) role.textContent = user.role;
+        document.querySelectorAll('[data-mutation-label]').forEach(element => {
+            const module = element.dataset.module;
+            const directLabel = element.dataset.directLabel || element.textContent;
+            const requestLabel = element.dataset.requestLabel || 'Request Change';
+            element.textContent = this.hasModuleAccess(module) ? directLabel : requestLabel;
+        });
+    },
+
+    async logout() {
+        const target = this.state.user?.role === 'staff' ? 'staff-login.html' : 'login.html';
+        await fetch(`${this.getApiUrl()}/auth/logout`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: '{}'
+        }).catch(() => {});
+        window.location.replace(target);
+    },
+
+    openPasswordSetup() {
+        const target = this.state.user?.role === 'staff' ? 'staff-login.html' : 'login.html';
+        window.location.href = `${target}?setup=1`;
+    },
+
+    submitChangeRequest(payload, requestMeta) {
+        return fetch(`${this.getApiUrl()}/change-requests`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                entityType: requestMeta.entityType,
+                entityId: requestMeta.entityId ?? null,
+                operation: requestMeta.operation,
+                payload: payload || {}
+            })
+        });
+    },
+
+    async sendMutation(method, path, payload, requestMeta) {
+        const module = this.moduleForChange(requestMeta);
+        if (!this.isAdmin()) {
+            const userResponse = await fetch(`${this.getApiUrl()}/auth/me`, { cache: 'no-store' });
+            if (userResponse.ok) {
+                const userData = await userResponse.json();
+                if (userData.user) {
+                    this.state.user = userData.user;
+                    this.applyRoleInterface();
+                }
+            }
+        }
+        if (!this.hasModuleAccess(module)) {
+            return this.submitChangeRequest(payload, requestMeta);
+        }
+
+        const response = await fetch(`${this.getApiUrl()}${path}`, {
+            method,
+            headers: { 'Content-Type': 'application/json' },
+            body: method === 'DELETE' ? undefined : JSON.stringify(payload || {})
+        });
+        if (this.isAdmin() || response.status !== 403) return response;
+
+        const error = await response.clone().json().catch(() => ({}));
+        if (error.code !== 'APPROVAL_REQUIRED') return response;
+
+        this.state.user.permissions = (this.state.user.permissions || []).filter(permission => permission !== module);
+        this.applyRoleInterface();
+        return this.submitChangeRequest(payload, requestMeta);
+    },
+
+    mutationMessage(data, directMessage) {
+        return data.requested ? 'Change request sent to an administrator' : directMessage;
     },
 
     // Event Listeners Binding
@@ -166,6 +304,8 @@ const VyaparApp = {
         if (tabName === 'billing') this.renderBillingForm();
         if (tabName === 'invoices') this.renderInvoices();
         if (tabName === 'reports') this.renderReports();
+        if (tabName === 'requests') Promise.all([this.loadChangeRequests(), this.loadAccessRequests()]);
+        if (tabName === 'staff') this.loadStaff();
     },
 
     // API Health Check
@@ -204,18 +344,22 @@ const VyaparApp = {
     async refreshAllData() {
         const url = this.getApiUrl();
         try {
-            const [products, customers, invoices, summary, settings] = await Promise.all([
+            const [products, customers, invoices, summary, settings, changeRequests, accessRequests] = await Promise.all([
                 fetch(`${url}/products`).then(r => r.json()).catch(() => []),
                 fetch(`${url}/customers`).then(r => r.json()).catch(() => []),
                 fetch(`${url}/invoices`).then(r => r.json()).catch(() => []),
                 fetch(`${url}/reports/summary`).then(r => r.json()).catch(() => null),
-                fetch(`${url}/settings`).then(r => r.json()).catch(() => null)
+                fetch(`${url}/settings`).then(r => r.json()).catch(() => null),
+                fetch(`${url}/change-requests`).then(r => r.json()).catch(() => []),
+                fetch(`${url}/access-requests`).then(r => r.json()).catch(() => [])
             ]);
 
             this.state.products = Array.isArray(products) ? products : [];
             this.state.customers = Array.isArray(customers) ? customers : [];
             this.state.invoices = Array.isArray(invoices) ? invoices : [];
             this.state.summary = summary;
+            this.state.changeRequests = Array.isArray(changeRequests) ? changeRequests : [];
+            this.state.accessRequests = Array.isArray(accessRequests) ? accessRequests : [];
             if (settings && settings.company_name) {
                 this.state.settings = {
                     companyName: settings.company_name,
@@ -235,12 +379,15 @@ const VyaparApp = {
 
     // Render Master Method
     renderAll() {
+        this.applyRoleInterface();
         this.renderDashboard();
         this.renderProducts();
         this.renderCustomers();
         this.renderBillingForm();
         this.renderInvoices();
         this.renderReports();
+        this.renderChangeRequests();
+        this.renderAccessRequests();
     },
 
     // ==========================================================
@@ -398,7 +545,7 @@ const VyaparApp = {
                     <td>
                         <div style="display:flex;gap:6px;">
                             <button class="btn btn-secondary btn-sm" onclick="VyaparApp.editProductModal(${p.id})">✏️ Edit</button>
-                            <button class="btn btn-danger btn-sm" onclick="VyaparApp.deleteProduct(${p.id})">🗑️</button>
+                            <button class="btn btn-danger btn-sm" onclick="VyaparApp.deleteProduct(${p.id})">${this.mutationActionLabel('inventory', '🗑️', 'Request Delete')}</button>
                         </div>
                     </td>
                 </tr>
@@ -471,28 +618,20 @@ const VyaparApp = {
         }
 
         const payload = { name, hsn, sku, category, purchasePrice, sellingPrice, stock };
-        const url = this.getApiUrl();
 
         try {
-            let res;
-            if (this.state.editingProductId) {
-                res = await fetch(`${url}/products/${this.state.editingProductId}`, {
-                    method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
-                });
-            } else {
-                res = await fetch(`${url}/products`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
-                });
-            }
+            const isUpdate = Boolean(this.state.editingProductId);
+            const res = await this.sendMutation(
+                isUpdate ? 'PUT' : 'POST',
+                isUpdate ? `/products/${this.state.editingProductId}` : '/products',
+                payload,
+                { entityType: 'product', entityId: this.state.editingProductId, operation: isUpdate ? 'update' : 'create' }
+            );
 
             const data = await res.json();
             if (!res.ok) throw new Error(data.error || 'Failed to save product');
 
-            this.showToast(this.state.editingProductId ? 'Product updated successfully!' : 'Product added successfully!', 'success');
+            this.showToast(this.mutationMessage(data, isUpdate ? 'Product updated successfully!' : 'Product added successfully!'), 'success');
             this.closeModal('modalProduct');
             await this.refreshAllData();
             this.renderProducts();
@@ -505,12 +644,12 @@ const VyaparApp = {
 
     async deleteProduct(id) {
         if (!confirm('Are you sure you want to delete this product?')) return;
-        const url = this.getApiUrl();
 
         try {
-            const res = await fetch(`${url}/products/${id}`, { method: 'DELETE' });
-            if (!res.ok) throw new Error('Failed to delete product');
-            this.showToast('Product deleted', 'success');
+            const res = await this.sendMutation('DELETE', `/products/${id}`, {}, { entityType: 'product', entityId: id, operation: 'delete' });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error || 'Failed to delete product');
+            this.showToast(this.mutationMessage(data, 'Product deleted'), 'success');
             await this.refreshAllData();
             this.renderProducts();
             this.renderBillingForm();
@@ -581,7 +720,7 @@ const VyaparApp = {
                     <td>
                         <div style="display:flex;gap:6px;">
                             <button class="btn btn-secondary btn-sm" onclick="VyaparApp.editCustomerModal(${c.id})">✏️ Edit</button>
-                            <button class="btn btn-danger btn-sm" onclick="VyaparApp.deleteCustomer(${c.id})">🗑️</button>
+                            <button class="btn btn-danger btn-sm" onclick="VyaparApp.deleteCustomer(${c.id})">${this.mutationActionLabel('customers', '🗑️', 'Request Delete')}</button>
                         </div>
                     </td>
                 </tr>
@@ -629,28 +768,20 @@ const VyaparApp = {
         }
 
         const payload = { name, mobile, city, state, gstin, email };
-        const url = this.getApiUrl();
 
         try {
-            let res;
-            if (this.state.editingCustomerId) {
-                res = await fetch(`${url}/customers/${this.state.editingCustomerId}`, {
-                    method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
-                });
-            } else {
-                res = await fetch(`${url}/customers`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
-                });
-            }
+            const isUpdate = Boolean(this.state.editingCustomerId);
+            const res = await this.sendMutation(
+                isUpdate ? 'PUT' : 'POST',
+                isUpdate ? `/customers/${this.state.editingCustomerId}` : '/customers',
+                payload,
+                { entityType: 'customer', entityId: this.state.editingCustomerId, operation: isUpdate ? 'update' : 'create' }
+            );
 
             const data = await res.json();
             if (!res.ok) throw new Error(data.error || 'Failed to save customer');
 
-            this.showToast(this.state.editingCustomerId ? 'Customer updated!' : 'Customer added successfully!', 'success');
+            this.showToast(this.mutationMessage(data, isUpdate ? 'Customer updated!' : 'Customer added successfully!'), 'success');
             this.closeModal('modalCustomer');
             await this.refreshAllData();
             this.renderCustomers();
@@ -682,17 +813,12 @@ const VyaparApp = {
             return;
         }
 
-        const url = this.getApiUrl();
         try {
-            const res = await fetch(`${url}/customers/${customerId}/payment`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ amount })
-            });
+            const res = await this.sendMutation('POST', `/customers/${customerId}/payment`, { amount }, { entityType: 'customer_payment', entityId: customerId, operation: 'create' });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error || 'Failed to record payment');
 
-            if (!res.ok) throw new Error('Failed to record payment');
-
-            this.showToast(`Recorded payment of ${this.formatCurrency(amount)} successfully!`, 'success');
+            this.showToast(this.mutationMessage(data, `Recorded payment of ${this.formatCurrency(amount)} successfully!`), 'success');
             this.closeModal('modalSettlePayment');
             await this.refreshAllData();
             this.renderCustomers();
@@ -704,12 +830,12 @@ const VyaparApp = {
 
     async deleteCustomer(id) {
         if (!confirm('Are you sure you want to delete this customer?')) return;
-        const url = this.getApiUrl();
 
         try {
-            const res = await fetch(`${url}/customers/${id}`, { method: 'DELETE' });
-            if (!res.ok) throw new Error('Failed to delete customer');
-            this.showToast('Customer deleted', 'success');
+            const res = await this.sendMutation('DELETE', `/customers/${id}`, {}, { entityType: 'customer', entityId: id, operation: 'delete' });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error || 'Failed to delete customer');
+            this.showToast(this.mutationMessage(data, 'Customer deleted'), 'success');
             await this.refreshAllData();
             this.renderCustomers();
             this.renderBillingForm();
@@ -983,17 +1109,18 @@ const VyaparApp = {
             notes
         };
 
-        const url = this.getApiUrl();
-
         try {
-            const res = await fetch(`${url}/invoices`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
-            });
+            const res = await this.sendMutation('POST', '/invoices', payload, { entityType: 'invoice', entityId: null, operation: 'create' });
 
             const invoice = await res.json();
             if (!res.ok) throw new Error(invoice.error || 'Failed to create invoice');
+
+            if (invoice.requested) {
+                this.showToast('Invoice request sent to an administrator', 'success');
+                this.resetBill();
+                await this.loadChangeRequests();
+                return;
+            }
 
             this.playBillChime();
             this.showToast(`Invoice ${invoice.id} generated successfully!`, 'success');
@@ -1052,7 +1179,7 @@ const VyaparApp = {
                     <td>
                         <div style="display:flex;gap:6px;">
                             <button class="btn btn-primary btn-sm" onclick="VyaparApp.viewInvoiceModal('${inv.id}')">🖨️ View / Print</button>
-                            <button class="btn btn-danger btn-sm" onclick="VyaparApp.deleteInvoice('${inv.id}')">🗑️</button>
+                            <button class="btn btn-danger btn-sm" onclick="VyaparApp.deleteInvoice('${inv.id}')">${this.mutationActionLabel('invoices', '🗑️', 'Request Delete')}</button>
                         </div>
                     </td>
                 </tr>
@@ -1062,18 +1189,14 @@ const VyaparApp = {
 
     async toggleInvoiceStatus(invoiceId, currentStatus) {
         const newStatus = currentStatus === 'Paid' ? 'Pending' : 'Paid';
-        const url = this.getApiUrl();
 
         try {
-            const res = await fetch(`${url}/invoices/${invoiceId}/status`, {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ status: newStatus })
-            });
+            const res = await this.sendMutation('PUT', `/invoices/${invoiceId}/status`, { status: newStatus }, { entityType: 'invoice', entityId: invoiceId, operation: 'update_status' });
 
-            if (!res.ok) throw new Error('Failed to update status');
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error || 'Failed to update status');
 
-            this.showToast(`Invoice status updated to ${newStatus}`, 'success');
+            this.showToast(this.mutationMessage(data, `Invoice status updated to ${newStatus}`), 'success');
             await this.refreshAllData();
             this.renderAll();
         } catch (err) {
@@ -1205,13 +1328,13 @@ const VyaparApp = {
 
     async deleteInvoice(invoiceId) {
         if (!confirm(`Are you sure you want to delete Invoice ${invoiceId}? Product inventory will be automatically restored.`)) return;
-        const url = this.getApiUrl();
 
         try {
-            const res = await fetch(`${url}/invoices/${invoiceId}`, { method: 'DELETE' });
-            if (!res.ok) throw new Error('Failed to delete invoice');
+            const res = await this.sendMutation('DELETE', `/invoices/${invoiceId}`, {}, { entityType: 'invoice', entityId: invoiceId, operation: 'delete' });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error || 'Failed to delete invoice');
 
-            this.showToast(`Invoice ${invoiceId} deleted and inventory restored`, 'success');
+            this.showToast(this.mutationMessage(data, `Invoice ${invoiceId} deleted and inventory restored`), 'success');
             await this.refreshAllData();
             this.renderAll();
         } catch (err) {
@@ -1329,6 +1452,390 @@ const VyaparApp = {
     },
 
     // ==========================================================
+    // ACCESS CONTROL & APPROVALS
+    // ==========================================================
+    loadRequestCenter() {
+        return Promise.all([this.loadChangeRequests(), this.loadAccessRequests()]);
+    },
+    updateRequestBadge() {
+        const pendingChanges = (this.state.changeRequests || []).filter(request => request.status === 'pending').length;
+        const pendingAccess = (this.state.accessRequests || []).filter(request => request.status === 'pending').length;
+        const badge = document.getElementById('requestCountBadge');
+        if (badge) {
+            badge.textContent = pendingChanges + pendingAccess;
+            badge.hidden = pendingChanges + pendingAccess === 0;
+        }
+    },
+
+    async loadAccessRequests() {
+        try {
+            const [requestResponse, userResponse] = await Promise.all([
+                fetch(`${this.getApiUrl()}/access-requests`, { cache: 'no-store' }),
+                fetch(`${this.getApiUrl()}/auth/me`, { cache: 'no-store' })
+            ]);
+            const requests = await requestResponse.json();
+            const userData = await userResponse.json();
+            if (!requestResponse.ok) throw new Error(requests.error || 'Unable to load access requests');
+            if (userResponse.ok && userData.user) {
+                this.state.user = userData.user;
+                this.applyRoleInterface();
+            }
+            this.state.accessRequests = Array.isArray(requests) ? requests : [];
+            this.renderAccessRequests();
+            if (this.isAdmin()) this.renderStaff();
+        } catch (error) {
+            this.showToast(error.message, 'error');
+        }
+    },
+
+    renderAccessRequests() {
+        const moduleGrid = document.getElementById('moduleAccessGrid');
+        if (moduleGrid && !this.isAdmin()) {
+            moduleGrid.innerHTML = Object.entries(this.accessModules).map(([module, label]) => {
+                const granted = this.state.user?.permissions?.includes(module);
+                const pending = this.state.accessRequests.find(request => request.module === module && request.status === 'pending');
+                return `<div class="card" style="padding:14px;">
+                    <div style="font-weight:800;">${label}</div>
+                    <div style="font-size:11px;color:var(--text-muted);margin:4px 0 10px;">${granted ? 'Direct changes allowed until revoked' : pending ? 'Waiting for administrator approval' : 'Changes require individual approval'}</div>
+                    ${granted
+                        ? '<span class="badge badge-paid">Access Granted</span>'
+                        : pending
+                            ? `<button class="btn btn-secondary btn-sm" onclick="VyaparApp.cancelAccessRequest(${pending.id})">Cancel Request</button>`
+                            : `<button class="btn btn-primary btn-sm" onclick="VyaparApp.requestModuleAccess('${module}')">Request Access</button>`}
+                </div>`;
+            }).join('');
+        }
+
+        const body = document.getElementById('accessRequestsBody');
+        if (!body) return;
+        const requests = this.state.accessRequests || [];
+        if (!requests.length) {
+            body.innerHTML = `<tr><td colspan="6" class="empty-placeholder">No module access requests found.</td></tr>`;
+            this.updateRequestBadge();
+            return;
+        }
+        body.innerHTML = requests.map(request => {
+            const actions = this.isAdmin() && request.status === 'pending'
+                ? `<button class="btn btn-success btn-sm" onclick="VyaparApp.reviewAccessRequest(${request.id}, 'approve')">Grant</button>
+                   <button class="btn btn-danger btn-sm" onclick="VyaparApp.reviewAccessRequest(${request.id}, 'reject')">Reject</button>`
+                : (!this.isAdmin() && request.status === 'pending'
+                    ? `<button class="btn btn-secondary btn-sm" onclick="VyaparApp.cancelAccessRequest(${request.id})">Cancel</button>`
+                    : '');
+            return `<tr>
+                <td><strong>#${request.id}</strong></td>
+                <td>${this.escapeHtml(request.requesterName || this.state.user?.name || '')}</td>
+                <td>${this.escapeHtml(this.accessModules[request.module] || request.module)}</td>
+                <td><strong class="status-${this.escapeHtml(request.status)}">${this.escapeHtml(request.status.toUpperCase())}</strong></td>
+                <td>${this.formatDate(request.createdAt)}</td>
+                <td><div style="display:flex;gap:6px;">${actions}</div></td>
+            </tr>`;
+        }).join('');
+        this.updateRequestBadge();
+    },
+
+    async requestModuleAccess(module) {
+        try {
+            const response = await fetch(`${this.getApiUrl()}/access-requests`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ module })
+            });
+            const data = await response.json();
+            if (!response.ok) throw new Error(data.error || 'Unable to request access');
+            this.showToast(`${this.accessModules[module]} access requested`, 'success');
+            await this.loadAccessRequests();
+        } catch (error) {
+            this.showToast(error.message, 'error');
+        }
+    },
+
+    async reviewAccessRequest(id, action) {
+        try {
+            const response = await fetch(`${this.getApiUrl()}/access-requests/${id}/${action}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: '{}'
+            });
+            const data = await response.json();
+            if (!response.ok) throw new Error(data.error || `Unable to ${action} access request`);
+            this.showToast(action === 'approve' ? 'Module access granted' : 'Module access rejected', 'success');
+            await Promise.all([this.loadAccessRequests(), this.loadStaff()]);
+        } catch (error) {
+            this.showToast(error.message, 'error');
+        }
+    },
+
+    async cancelAccessRequest(id) {
+        try {
+            const response = await fetch(`${this.getApiUrl()}/access-requests/${id}/cancel`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: '{}'
+            });
+            const data = await response.json();
+            if (!response.ok) throw new Error(data.error || 'Unable to cancel access request');
+            this.showToast('Access request cancelled', 'success');
+            await this.loadAccessRequests();
+        } catch (error) {
+            this.showToast(error.message, 'error');
+        }
+    },
+
+    async loadChangeRequests() {
+        try {
+            const response = await fetch(`${this.getApiUrl()}/change-requests`, { cache: 'no-store' });
+            const data = await response.json();
+            if (!response.ok) throw new Error(data.error || 'Unable to load requests');
+            this.state.changeRequests = data;
+            this.renderChangeRequests();
+        } catch (error) {
+            this.showToast(error.message, 'error');
+        }
+    },
+
+    renderChangeRequests() {
+        const body = document.getElementById('changeRequestsBody');
+        if (!body) return;
+        const requests = this.state.changeRequests || [];
+        this.updateRequestBadge();
+        if (!requests.length) {
+            body.innerHTML = `<tr><td colspan="6" class="empty-placeholder">No change requests found.</td></tr>`;
+            return;
+        }
+        body.innerHTML = requests.map(request => {
+            const actions = this.isAdmin() && request.status === 'pending'
+                ? `<button class="btn btn-success btn-sm" onclick="VyaparApp.approveRequest(${request.id})">Approve</button>
+                   <button class="btn btn-danger btn-sm" onclick="VyaparApp.rejectRequest(${request.id})">Reject</button>`
+                : (!this.isAdmin() && request.status === 'pending'
+                    ? `<button class="btn btn-secondary btn-sm" onclick="VyaparApp.cancelRequest(${request.id})">Cancel</button>`
+                    : '');
+            return `<tr>
+                <td><strong>#${request.id}</strong><div style="font-size:11px;color:var(--text-muted);">${this.formatDate(request.createdAt)}</div></td>
+                <td>${this.escapeHtml(request.requesterName || this.state.user?.name || '')}</td>
+                <td><span class="badge badge-category">${this.escapeHtml(request.operation)}</span> ${this.escapeHtml(request.entityType)}${request.entityId ? ` #${this.escapeHtml(String(request.entityId))}` : ''}</td>
+                <td><div class="request-diff">${this.escapeHtml(JSON.stringify(request.payload, null, 2))}</div></td>
+                <td><strong class="status-${this.escapeHtml(request.status)}">${this.escapeHtml(request.status.toUpperCase())}</strong>${request.reviewNote ? `<div style="font-size:11px;color:var(--text-muted);">${this.escapeHtml(request.reviewNote)}</div>` : ''}</td>
+                <td><div style="display:flex;gap:6px;">${actions}</div></td>
+            </tr>`;
+        }).join('');
+    },
+
+    openRequestReview(id, action) {
+        if (!this.isAdmin() || !['approve', 'reject'].includes(action)) return;
+        const request = this.state.changeRequests.find(item => item.id === id && item.status === 'pending');
+        if (!request) return this.showToast('This request is no longer pending', 'error');
+        this.state.reviewingRequest = { id, action };
+        document.getElementById('requestReviewTitle').textContent = action === 'approve' ? 'Approve Change Request' : 'Reject Change Request';
+        document.getElementById('requestReviewSummary').textContent = `${request.operation} ${request.entityType}${request.entityId ? ` #${request.entityId}` : ''} requested by ${request.requesterName || 'staff'}`;
+        document.getElementById('requestReviewNote').value = '';
+        const submit = document.getElementById('requestReviewSubmit');
+        submit.textContent = action === 'approve' ? 'Approve and Apply' : 'Reject Request';
+        submit.className = `btn ${action === 'approve' ? 'btn-success' : 'btn-danger'}`;
+        this.openModal('modalRequestReview');
+    },
+
+    async submitRequestReview() {
+        const review = this.state.reviewingRequest;
+        if (!review) return;
+        const note = document.getElementById('requestReviewNote').value.trim();
+        try {
+            const response = await fetch(`${this.getApiUrl()}/change-requests/${review.id}/${review.action}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ note })
+            });
+            const data = await response.json();
+            if (!response.ok) throw new Error(data.error || `Unable to ${review.action} request`);
+            this.closeModal('modalRequestReview');
+            this.state.reviewingRequest = null;
+            this.showToast(review.action === 'approve' ? 'Request approved and applied' : 'Request rejected', 'success');
+            await this.refreshAllData();
+            this.renderAll();
+        } catch (error) {
+            this.showToast(error.message, 'error');
+            await this.loadChangeRequests();
+        }
+    },
+
+    approveRequest(id) {
+        return this.openRequestReview(id, 'approve');
+    },
+
+    rejectRequest(id) {
+        return this.openRequestReview(id, 'reject');
+    },
+
+    async cancelRequest(id) {
+        if (!confirm('Cancel this pending request?')) return;
+        try {
+            const response = await fetch(`${this.getApiUrl()}/change-requests/${id}/cancel`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: '{}'
+            });
+            const data = await response.json();
+            if (!response.ok) throw new Error(data.error || 'Unable to cancel request');
+            this.showToast('Request cancelled', 'success');
+            await this.loadChangeRequests();
+        } catch (error) {
+            this.showToast(error.message, 'error');
+        }
+    },
+
+    async loadStaff() {
+        if (!this.isAdmin()) return;
+        try {
+            const response = await fetch(`${this.getApiUrl()}/staff`, { cache: 'no-store' });
+            const data = await response.json();
+            if (!response.ok) throw new Error(data.error || 'Unable to load staff');
+            this.state.staff = data;
+            this.renderStaff();
+        } catch (error) {
+            this.showToast(error.message, 'error');
+        }
+    },
+
+    renderStaff() {
+        const body = document.getElementById('staffTableBody');
+        if (!body || !this.isAdmin()) return;
+        if (!this.state.staff.length) {
+            body.innerHTML = `<tr><td colspan="7" class="empty-placeholder">No staff accounts yet.</td></tr>`;
+            return;
+        }
+        body.innerHTML = this.state.staff.map(staff => `<tr>
+            <td><strong>${this.escapeHtml(staff.name)}</strong></td>
+            <td>${this.escapeHtml(staff.email)}</td>
+            <td><span class="badge ${staff.isActive ? 'badge-paid' : 'badge-pending'}">${staff.isActive ? 'Active' : 'Disabled'}</span></td>
+            <td>${staff.mustChangePassword ? 'Temporary password' : 'Configured'}</td>
+            <td>${staff.lastLoginAt ? this.formatDate(staff.lastLoginAt) : 'Never'}</td>
+            <td><div style="display:flex;gap:5px;flex-wrap:wrap;">${(staff.permissions || []).length
+                ? staff.permissions.map(module => `<button class="badge badge-paid" style="cursor:pointer;border:0;" title="Click to revoke" onclick="VyaparApp.revokeStaffAccess(${staff.id}, '${module}')">${this.escapeHtml(this.accessModules[module] || module)} ×</button>`).join('')
+                : '<span style="color:var(--text-muted);font-size:11px;">Approval required</span>'}</div></td>
+            <td><div style="display:flex;gap:6px;flex-wrap:wrap;">
+                <button class="btn btn-secondary btn-sm" onclick="VyaparApp.editStaff(${staff.id})">Edit</button>
+                <button class="btn btn-secondary btn-sm" onclick="VyaparApp.resetStaffPassword(${staff.id})">Reset Password</button>
+                <button class="btn ${staff.isActive ? 'btn-danger' : 'btn-success'} btn-sm" onclick="VyaparApp.setStaffActive(${staff.id}, ${!staff.isActive})">${staff.isActive ? 'Disable' : 'Enable'}</button>
+                <button class="btn btn-danger btn-sm" onclick="VyaparApp.deleteStaff(${staff.id})">Delete Permanently</button>
+            </div></td>
+        </tr>`).join('');
+    },
+
+    async createStaff() {
+        const name = document.getElementById('staffName').value.trim();
+        const email = document.getElementById('staffEmail').value.trim();
+        const temporaryPassword = document.getElementById('staffTemporaryPassword').value;
+        if (!name || !email) return this.showToast('Staff name and email are required', 'error');
+        if (temporaryPassword && temporaryPassword.length < 8) return this.showToast('Temporary password must be at least 8 characters', 'error');
+        try {
+            const response = await fetch(`${this.getApiUrl()}/staff`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name, email, temporaryPassword: temporaryPassword || undefined })
+            });
+            const data = await response.json();
+            if (!response.ok) throw new Error(data.error || 'Unable to create staff');
+            document.getElementById('staffName').value = '';
+            document.getElementById('staffEmail').value = '';
+            document.getElementById('staffTemporaryPassword').value = '';
+            alert(`Staff account created.\n\nEmail: ${data.email}\nTemporary password: ${data.temporaryPassword}\n\n${data.passwordWasGenerated ? 'A password was generated because none was entered. ' : ''}The staff member must change it at first login.`);
+            await this.loadStaff();
+        } catch (error) {
+            this.showToast(error.message, 'error');
+        }
+    },
+
+    async setStaffActive(id, isActive) {
+        if (!confirm(`${isActive ? 'Enable' : 'Disable'} this staff account?`)) return;
+        try {
+            const response = await fetch(`${this.getApiUrl()}/staff/${id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ isActive })
+            });
+            const data = await response.json();
+            if (!response.ok) throw new Error(data.error || 'Unable to update staff');
+            this.showToast(isActive ? 'Staff account enabled' : 'Staff account disabled and sessions revoked', 'success');
+            await this.loadStaff();
+        } catch (error) {
+            this.showToast(error.message, 'error');
+        }
+    },
+
+    async editStaff(id) {
+        const staff = this.state.staff.find(member => member.id === id);
+        if (!staff) return;
+        const name = prompt('Staff name:', staff.name);
+        if (name === null) return;
+        const email = prompt('Staff email:', staff.email);
+        if (email === null) return;
+        try {
+            const response = await fetch(`${this.getApiUrl()}/staff/${id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name: name.trim(), email: email.trim() })
+            });
+            const data = await response.json();
+            if (!response.ok) throw new Error(data.error || 'Unable to update staff');
+            this.showToast('Staff details updated', 'success');
+            await this.loadStaff();
+        } catch (error) {
+            this.showToast(error.message, 'error');
+        }
+    },
+
+    async resetStaffPassword(id) {
+        if (!confirm('Reset this staff password and revoke all active sessions?')) return;
+        const selectedPassword = prompt('Enter a temporary password of at least 8 characters, or leave blank to generate one automatically:', '');
+        if (selectedPassword === null) return;
+        if (selectedPassword && selectedPassword.length < 8) return this.showToast('Temporary password must be at least 8 characters', 'error');
+        try {
+            const response = await fetch(`${this.getApiUrl()}/staff/${id}/reset-password`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ temporaryPassword: selectedPassword || undefined })
+            });
+            const data = await response.json();
+            if (!response.ok) throw new Error(data.error || 'Unable to reset password');
+            alert(`Temporary password: ${data.temporaryPassword}\n\n${data.passwordWasGenerated ? 'A password was generated automatically. ' : ''}The staff member must change it at first login.`);
+            await this.loadStaff();
+        } catch (error) {
+            this.showToast(error.message, 'error');
+        }
+    },
+
+    async deleteStaff(id) {
+        const staff = this.state.staff.find(member => member.id === id);
+        if (!staff) return;
+        const confirmation = prompt(`Permanently delete ${staff.name}?\n\nLogin details and personal profile data will be removed. Pending requests will be cancelled and completed history will remain anonymized.\n\nType DELETE to continue:`);
+        if (confirmation !== 'DELETE') {
+            if (confirmation !== null) this.showToast('Permanent deletion cancelled', 'info');
+            return;
+        }
+        try {
+            const response = await fetch(`${this.getApiUrl()}/staff/${id}`, { method: 'DELETE' });
+            const data = await response.json();
+            if (!response.ok) throw new Error(data.error || 'Unable to delete staff');
+            this.showToast(`Staff permanently deleted. ${data.cancelledRequests || 0} pending request(s) cancelled.`, 'success');
+            await Promise.all([this.loadStaff(), this.loadChangeRequests()]);
+        } catch (error) {
+            this.showToast(error.message, 'error');
+        }
+    },
+
+    async revokeStaffAccess(staffId, module) {
+        if (!confirm(`Revoke ${this.accessModules[module] || module} edit access? Future changes in this module will require approval.`)) return;
+        try {
+            const response = await fetch(`${this.getApiUrl()}/staff/${staffId}/permissions/${module}`, { method: 'DELETE' });
+            const data = await response.json();
+            if (!response.ok) throw new Error(data.error || 'Unable to revoke module access');
+            this.showToast(`${this.accessModules[module] || module} access revoked`, 'success');
+            await this.loadStaff();
+        } catch (error) {
+            this.showToast(error.message, 'error');
+        }
+    },
+
+    // ==========================================================
     // 7. SETTINGS & MODALS
     // ==========================================================
     openSettingsModal() {
@@ -1345,7 +1852,7 @@ const VyaparApp = {
 
     async saveSettings() {
         const newUrl = document.getElementById('settingsApiUrl').value.trim();
-        if (newUrl) {
+        if (newUrl && this.isAdmin()) {
             this.setApiUrl(newUrl);
         }
 
@@ -1354,26 +1861,24 @@ const VyaparApp = {
         const phone = document.getElementById('setPhone').value.trim();
         const address = document.getElementById('setAddress').value.trim();
 
-        const url = this.getApiUrl();
         try {
-            await fetch(`${url}/settings`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ companyName, gstin, phone, address })
-            });
+            const res = await this.sendMutation('POST', '/settings', { companyName, gstin, phone, address }, { entityType: 'settings', entityId: 1, operation: 'update' });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error || 'Failed to save settings');
 
-            this.state.settings.companyName = companyName || this.state.settings.companyName;
-            this.state.settings.gstin = gstin || this.state.settings.gstin;
-            this.state.settings.phone = phone || this.state.settings.phone;
-            this.state.settings.address = address || this.state.settings.address;
+            if (!data.requested) {
+                this.state.settings.companyName = companyName || this.state.settings.companyName;
+                this.state.settings.gstin = gstin || this.state.settings.gstin;
+                this.state.settings.phone = phone || this.state.settings.phone;
+                this.state.settings.address = address || this.state.settings.address;
+            }
 
-            this.showToast('Settings saved successfully!', 'success');
+            this.showToast(this.mutationMessage(data, 'Settings saved successfully!'), 'success');
             this.closeModal('modalSettings');
             await this.refreshAllData();
             this.renderAll();
         } catch (err) {
-            this.showToast('Updated local settings', 'info');
-            this.closeModal('modalSettings');
+            this.showToast(err.message, 'error');
         }
     },
 
@@ -1394,7 +1899,7 @@ const VyaparApp = {
                 throw new Error(`HTTP ${res.status}`);
             }
         } catch (err) {
-            alert(`❌ Connection Failed to: ${targetUrl}\n\nError: ${err.message}\nMake sure your backend server is running and CORS is enabled.`);
+                alert(`❌ Connection Failed to: ${targetUrl}\n\nError: ${err.message}\nMake sure your backend server is running and CORS is enabled.`);
         } finally {
             if (testBtn) testBtn.textContent = originalText;
         }
