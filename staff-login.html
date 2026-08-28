@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Staff Sign In - Vyapar ERP</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body class="auth-page" data-login-role="staff">
+    <main class="auth-shell">
+        <section class="auth-brand-panel staff-auth-brand">
+            <div class="brand-logo auth-logo">वा</div>
+            <p class="auth-eyebrow">STAFF ACCESS</p>
+            <h1>See the business. Request accountable changes.</h1>
+            <p>Staff can review business data, request module edit access, and send ungranted changes for administrator approval.</p>
+            <div class="auth-points">
+                <span>Module-based access</span>
+                <span>Exact change requests</span>
+                <span>Admin approval</span>
+            </div>
+        </section>
+
+        <section class="auth-card">
+            <div id="loginPanel" class="auth-panel active">
+                <p class="auth-eyebrow">STAFF SIGN IN</p>
+                <h2>Welcome to Vyapar</h2>
+                <p class="auth-copy">Use the email and password supplied by your administrator.</p>
+                <form id="loginForm">
+                    <label class="form-label" for="loginEmail">Staff email</label>
+                    <input class="form-control" id="loginEmail" type="email" autocomplete="username" required>
+                    <label class="form-label auth-field" for="loginPassword">Password</label>
+                    <input class="form-control" id="loginPassword" type="password" autocomplete="current-password" required>
+                    <button class="btn btn-primary auth-submit" type="submit">Sign In as Staff</button>
+                </form>
+                <p class="auth-help">Forgot your password? Contact an administrator for a new temporary password.</p>
+                <p class="auth-help">Administrator? <a href="login.html">Open the administrator login page</a>.</p>
+            </div>
+
+            <div id="setupPanel" class="auth-panel">
+                <p class="auth-eyebrow">SECURE YOUR ACCOUNT</p>
+                <h2>Replace temporary password</h2>
+                <p class="auth-copy" id="setupMessage">Replace the temporary password supplied by your administrator.</p>
+                <form id="setupForm">
+                    <label class="form-label" for="currentPassword">Temporary password</label>
+                    <input class="form-control" id="currentPassword" type="password" autocomplete="current-password" required>
+                    <label class="form-label auth-field" for="newPassword">New password</label>
+                    <input class="form-control" id="newPassword" type="password" minlength="8" autocomplete="new-password" required>
+                    <button class="btn btn-primary auth-submit" type="submit">Save and Continue</button>
+                </form>
+                <button class="auth-link" id="setupLogout" type="button">Sign out</button>
+            </div>
+
+            <div class="auth-message" id="authMessage" role="alert"></div>
+        </section>
+    </main>
+    <script src="config.js"></script>
+    <script src="auth.js"></script>
+</body>
+</html>
