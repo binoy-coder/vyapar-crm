@@ -10,5 +10,11 @@ services:
         value: production
       - key: PORT
         value: 10000
-      - key: JWT_SECRET
-        generateValue: true
+      - key: INITIAL_ADMIN_NAME
+        value: Vyapar Administrator
+      - key: INITIAL_ADMIN_EMAIL
+        sync: false
+      - key: INITIAL_ADMIN_PASSWORD
+        sync: false
+      - key: INITIAL_ADMIN_PIN
+        sync: false
