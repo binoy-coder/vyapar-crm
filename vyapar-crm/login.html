@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Administrator Sign In - Vyapar ERP</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body class="auth-page" data-login-role="admin">
+    <main class="auth-shell">
+        <section class="auth-brand-panel">
+            <div class="brand-logo auth-logo">वा</div>
+            <p class="auth-eyebrow">ADMINISTRATOR ACCESS</p>
+            <h1>Control the business and every approved change.</h1>
+            <p>Administrators manage business data, staff access, password recovery, and the complete approval queue.</p>
+            <div class="auth-points">
+                <span>Admin-controlled staff</span>
+                <span>Audited approvals</span>
+                <span>PIN-based admin recovery</span>
+            </div>
+        </section>
+
+        <section class="auth-card">
+            <div id="loginPanel" class="auth-panel active">
+                <p class="auth-eyebrow">ADMIN SIGN IN</p>
+                <h2>Administrator access</h2>
+                <p class="auth-copy">Use an account with the administrator role.</p>
+                <form id="loginForm">
+                    <label class="form-label" for="loginEmail">Email address</label>
+                    <input class="form-control" id="loginEmail" type="email" autocomplete="username" required>
+                    <label class="form-label auth-field" for="loginPassword">Password</label>
+                    <input class="form-control" id="loginPassword" type="password" autocomplete="current-password" required>
+                    <button class="btn btn-primary auth-submit" type="submit">Sign In as Administrator</button>
+                </form>
+                <button class="auth-link" type="button" data-show-panel="recoveryPanel">Admin forgot password?</button>
+                <p class="auth-help">Staff member? <a href="staff-login.html">Open the staff login page</a>.</p>
+            </div>
+
+            <div id="recoveryPanel" class="auth-panel">
+                <p class="auth-eyebrow">ADMIN RECOVERY</p>
+                <h2>Choose a new password</h2>
+                <p class="auth-copy">Verify your administrator account with its recovery PIN.</p>
+                <form id="recoveryForm">
+                    <label class="form-label" for="recoveryEmail">Admin email</label>
+                    <input class="form-control" id="recoveryEmail" type="email" autocomplete="username" required>
+                    <label class="form-label auth-field" for="recoveryPin">Recovery PIN</label>
+                    <input class="form-control" id="recoveryPin" type="password" inputmode="numeric" pattern="[0-9]{6,8}" minlength="6" maxlength="8" autocomplete="one-time-code" required>
+                    <label class="form-label auth-field" for="recoveryPassword">New password</label>
+                    <input class="form-control" id="recoveryPassword" type="password" minlength="8" autocomplete="new-password" required>
+                    <button class="btn btn-primary auth-submit" type="submit">Reset Password</button>
+                </form>
+                <button class="auth-link" type="button" data-show-panel="loginPanel">Back to sign in</button>
+            </div>
+
+            <div id="setupPanel" class="auth-panel">
+                <p class="auth-eyebrow">SECURE YOUR ACCOUNT</p>
+                <h2>Complete account setup</h2>
+                <p class="auth-copy" id="setupMessage">Replace your temporary password before continuing.</p>
+                <form id="setupForm">
+                    <label class="form-label" for="currentPassword">Current password</label>
+                    <input class="form-control" id="currentPassword" type="password" autocomplete="current-password" required>
+                    <label class="form-label auth-field" for="newPassword">New password</label>
+                    <input class="form-control" id="newPassword" type="password" minlength="8" autocomplete="new-password" required>
+                    <div id="pinSetupField" hidden>
+                        <label class="form-label auth-field" for="newRecoveryPin">New 6-8 digit recovery PIN</label>
+                        <input class="form-control" id="newRecoveryPin" type="password" inputmode="numeric" pattern="[0-9]{6,8}" minlength="6" maxlength="8">
+                    </div>
+                    <button class="btn btn-primary auth-submit" type="submit">Save and Continue</button>
+                </form>
+                <button class="auth-link" id="setupLogout" type="button">Sign out</button>
+            </div>
+
+            <div class="auth-message" id="authMessage" role="alert"></div>
+        </section>
+    </main>
+    <script src="config.js"></script>
+    <script src="auth.js"></script>
+</body>
+</html>

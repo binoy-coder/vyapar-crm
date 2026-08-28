@@ -1,0 +1,13 @@
+# Netlify Deployment Configuration for Vyapar CRM Frontend
+
+[build]
+  publish = "dist"
+  command = "npm run build:frontend"
+
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Frame-Options = "DENY"
+    X-XSS-Protection = "1; mode=block"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "same-origin"

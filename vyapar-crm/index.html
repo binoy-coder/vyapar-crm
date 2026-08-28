@@ -1,0 +1,845 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vyapar - Bharat's Smart Business CRM & ERP</title>
+    <meta name="description" content="Professional GST-compliant Billing, Inventory, CRM, and Analytics Engine for Indian Businesses">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div class="app-container">
+    
+    <!-- Top Header Navigation Bar -->
+    <header class="navbar">
+        <div class="brand-section" onclick="VyaparApp.switchTab('dashboard')">
+            <div class="brand-logo">वा</div>
+            <div class="brand-info">
+                <div class="brand-name">वायपार <span>ERP</span></div>
+                <div class="brand-tagline">Bharat's Smart Business Engine</div>
+            </div>
+        </div>
+
+        <nav class="nav-tabs">
+            <button class="nav-btn active" data-tab="dashboard">
+                <span>📊</span> Dashboard
+            </button>
+            <button class="nav-btn" data-tab="inventory">
+                <span>📦</span> Inventory
+            </button>
+            <button class="nav-btn" data-tab="crm">
+                <span>👥</span> Customers (CRM)
+            </button>
+            <button class="nav-btn" data-tab="billing">
+                <span>⚡</span> Fast Billing
+            </button>
+            <button class="nav-btn" data-tab="invoices">
+                <span>📄</span> Invoices
+            </button>
+            <button class="nav-btn" data-tab="reports">
+                <span>📈</span> Reports & GST
+            </button>
+            <button class="nav-btn" data-tab="requests">
+                <span>✓</span> Requests <span class="badge badge-pending" id="requestCountBadge" hidden>0</span>
+            </button>
+            <button class="nav-btn" data-tab="staff" data-admin-only hidden>
+                <span>♟</span> Staff
+            </button>
+        </nav>
+
+        <div class="header-actions">
+            <div class="api-badge" onclick="VyaparApp.openSettingsModal()" title="Click to configure Backend API URL">
+                <div class="status-dot online" id="apiStatusDot"></div>
+                <span id="apiStatusText">Checking API...</span>
+            </div>
+            <button class="settings-btn" onclick="VyaparApp.openSettingsModal()">
+                ⚙️ Settings
+            </button>
+            <div class="user-menu">
+                <div class="user-identity">
+                    <div class="user-name" id="currentUserName"></div>
+                    <div class="user-role" id="currentUserRole"></div>
+                </div>
+                <button class="settings-btn" onclick="VyaparApp.openPasswordSetup()" title="Change password">Password</button>
+                <button class="settings-btn" onclick="VyaparApp.logout()">Logout</button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content Area -->
+    <main class="main-content">
+        
+        <!-- ========================================== -->
+        <!-- TAB 1: DASHBOARD -->
+        <!-- ========================================== -->
+        <div class="tab-pane active" id="dashboard-tab">
+            <div class="section-header">
+                <div>
+                    <h1 class="section-title">Business Overview</h1>
+                    <div class="section-subtitle">Real-time health, daily revenue metrics & GST summary</div>
+                </div>
+                <div class="quick-actions-bar">
+                    <button class="btn btn-primary" onclick="VyaparApp.switchTab('billing')">⚡ + New Bill</button>
+                    <button class="btn btn-secondary" onclick="VyaparApp.openAddProductModal()">📦 + Add Product</button>
+                    <button class="btn btn-secondary" onclick="VyaparApp.openAddCustomerModal()">👥 + Add Customer</button>
+                </div>
+            </div>
+
+            <!-- KPI Cards Grid -->
+            <div class="kpi-grid">
+                <div class="kpi-card" onclick="VyaparApp.switchTab('reports')">
+                    <div class="kpi-header">
+                        <span class="kpi-title">Total Lifetime Revenue</span>
+                        <div class="kpi-icon gold">💰</div>
+                    </div>
+                    <div class="kpi-value" id="dashTotalRevenue">₹0.00</div>
+                    <div class="kpi-footer">
+                        <span>All invoices generated</span>
+                        <span class="kpi-trend positive">Live Sync</span>
+                    </div>
+                </div>
+
+                <div class="kpi-card" onclick="VyaparApp.switchTab('crm')">
+                    <div class="kpi-header">
+                        <span class="kpi-title">Pending Receivables</span>
+                        <div class="kpi-icon red">⏳</div>
+                    </div>
+                    <div class="kpi-value" id="dashPendingReceivables" style="color:var(--accent-red);">₹0.00</div>
+                    <div class="kpi-footer">
+                        <span>Customer credit balance</span>
+                        <span class="kpi-trend neutral">To Collect</span>
+                    </div>
+                </div>
+
+                <div class="kpi-card" onclick="VyaparApp.switchTab('inventory')">
+                    <div class="kpi-header">
+                        <span class="kpi-title">Low Stock Alert</span>
+                        <div class="kpi-icon red">⚠️</div>
+                    </div>
+                    <div class="kpi-value" id="dashLowStock" style="color:var(--accent-gold);">0</div>
+                    <div class="kpi-footer">
+                        <span>Items below 5 units</span>
+                        <span class="kpi-trend neutral">Reorder</span>
+                    </div>
+                </div>
+
+                <div class="kpi-card" onclick="VyaparApp.switchTab('crm')">
+                    <div class="kpi-header">
+                        <span class="kpi-title">Active Customers</span>
+                        <div class="kpi-icon green">👥</div>
+                    </div>
+                    <div class="kpi-value" id="dashTotalCustomers">0</div>
+                    <div class="kpi-footer">
+                        <span>Registered businesses/clients</span>
+                        <span class="kpi-trend positive">Active CRM</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Dashboard Charts & Grid -->
+            <div class="dashboard-grid">
+                <div class="card">
+                    <div class="card-title">
+                        <span>📈 7-Day Revenue Trend</span>
+                        <span style="font-size:12px;color:var(--text-secondary);font-weight:normal;">Hover bars for breakdown</span>
+                    </div>
+                    <div class="chart-container" id="dashSalesChart">
+                        <!-- Populated by JS -->
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-title">
+                        <span>⚡ Fast Shortcuts</span>
+                    </div>
+                    <div style="display:flex;flex-direction:column;gap:10px;">
+                        <button class="btn btn-secondary" style="justify-content:flex-start;" onclick="VyaparApp.switchTab('billing')">
+                            💳 Launch POS Billing Terminal
+                        </button>
+                        <button class="btn btn-secondary" style="justify-content:flex-start;" onclick="VyaparApp.exportInvoicesCSV()">
+                            📥 Export Invoices to Excel / CSV
+                        </button>
+                        <button class="btn btn-secondary" style="justify-content:flex-start;" onclick="VyaparApp.exportProductsCSV()">
+                            📦 Export Inventory Catalog
+                        </button>
+                        <button class="btn btn-secondary" style="justify-content:flex-start;" onclick="VyaparApp.openSettingsModal()">
+                            ⚙️ Configure Store & GST Details
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Recent Invoices Table -->
+            <div class="card">
+                <div class="card-title">
+                    <span>📄 Recent Invoices</span>
+                    <button class="btn btn-secondary btn-sm" onclick="VyaparApp.switchTab('invoices')">View All Invoices →</button>
+                </div>
+                <div class="table-responsive">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Invoice #</th>
+                                <th>Customer Name</th>
+                                <th>Amount</th>
+                                <th>Status</th>
+                                <th>Date</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="dashRecentInvoices">
+                            <!-- Populated by JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- ========================================== -->
+        <!-- TAB 2: INVENTORY -->
+        <!-- ========================================== -->
+        <div class="tab-pane" id="inventory-tab">
+            <div class="section-header">
+                <div>
+                    <h1 class="section-title">Inventory & Stock Management</h1>
+                    <div class="section-subtitle">Manage products, HSN codes for GST, buy/sell margins, and live stock</div>
+                </div>
+                <div class="quick-actions-bar">
+                    <button class="btn btn-primary" onclick="VyaparApp.openAddProductModal()">+ Add New Product</button>
+                    <button class="btn btn-secondary" onclick="VyaparApp.exportProductsCSV()">📥 Export CSV</button>
+                </div>
+            </div>
+
+            <!-- Search & Filters Toolbar -->
+            <div class="toolbar">
+                <div class="search-input-wrap">
+                    <span class="search-icon">🔍</span>
+                    <input type="text" id="searchProducts" class="search-input" placeholder="Search by Product Name, SKU, HSN code, Category...">
+                </div>
+                <select id="filterCategory" class="filter-select">
+                    <option value="ALL">All Categories</option>
+                </select>
+                <select id="filterStock" class="filter-select">
+                    <option value="ALL">All Stock Levels</option>
+                    <option value="LOW">⚠️ Low Stock Only (&lt; 5)</option>
+                    <option value="IN_STOCK">In Stock (≥ 5)</option>
+                    <option value="OUT_OF_STOCK">Out of Stock (0)</option>
+                </select>
+            </div>
+
+            <!-- Products Table -->
+            <div class="table-responsive">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Product Name</th>
+                            <th>HSN</th>
+                            <th>SKU</th>
+                            <th>Cost Price</th>
+                            <th>Selling Price</th>
+                            <th>Margin</th>
+                            <th>Current Stock</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="productsTableBody">
+                        <!-- Populated by JS -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- ========================================== -->
+        <!-- TAB 3: CUSTOMERS (CRM) -->
+        <!-- ========================================== -->
+        <div class="tab-pane" id="crm-tab">
+            <div class="section-header">
+                <div>
+                    <h1 class="section-title">Customer Relationship Management (CRM)</h1>
+                    <div class="section-subtitle">Track customer ledger, outstanding credit dues, purchase history & WhatsApp contact</div>
+                </div>
+                <div class="quick-actions-bar">
+                    <button class="btn btn-primary" onclick="VyaparApp.openAddCustomerModal()">+ Add New Customer</button>
+                </div>
+            </div>
+
+            <!-- Search Toolbar -->
+            <div class="toolbar">
+                <div class="search-input-wrap">
+                    <span class="search-icon">🔍</span>
+                    <input type="text" id="searchCustomers" class="search-input" placeholder="Search by Customer Name, Phone, City, State, GSTIN...">
+                </div>
+            </div>
+
+            <!-- Customers Table -->
+            <div class="table-responsive">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Customer Name</th>
+                            <th>Phone / WhatsApp</th>
+                            <th>City / State</th>
+                            <th>GSTIN</th>
+                            <th>Total Purchased</th>
+                            <th>Outstanding Balance</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="customersTableBody">
+                        <!-- Populated by JS -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- ========================================== -->
+        <!-- TAB 4: FAST POS BILLING TERMINAL -->
+        <!-- ========================================== -->
+        <div class="tab-pane" id="billing-tab">
+            <div class="section-header">
+                <div>
+                    <h1 class="section-title">Fast POS Billing Terminal</h1>
+                    <div class="section-subtitle">Instant GST Tax Invoice generator with live stock adjustment and customer sync</div>
+                </div>
+                <div class="quick-actions-bar">
+                    <button class="btn btn-secondary" onclick="VyaparApp.resetBill()">🔄 Clear Cart</button>
+                </div>
+            </div>
+
+            <div class="pos-layout">
+                <!-- Cart & Product Picker -->
+                <div class="pos-cart-panel">
+                    <!-- Customer Selector Row -->
+                    <div class="form-grid">
+                        <div class="form-group" style="grid-column: 1 / -1;">
+                            <label class="form-label">Customer / Party Name</label>
+                            <div style="display:flex;gap:8px;">
+                                <select id="billCustomer" class="form-control" style="flex:1;">
+                                    <option value="">-- Select Customer --</option>
+                                </select>
+                                <button type="button" class="btn btn-secondary" onclick="VyaparApp.openAddCustomerModal()">+ New</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Product Picker Row -->
+                    <div class="form-group">
+                        <label class="form-label">Select Product to Add</label>
+                        <select id="billProductSelect" class="form-control">
+                            <option value="">+ Choose Product to Add to Bill...</option>
+                        </select>
+                    </div>
+
+                    <!-- Cart Line Items Table -->
+                    <div class="table-responsive">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Item Description</th>
+                                    <th>Price (₹)</th>
+                                    <th>Quantity</th>
+                                    <th>Total (₹)</th>
+                                    <th>Remove</th>
+                                </tr>
+                            </thead>
+                            <tbody id="billItemsTableBody">
+                                <!-- Populated by JS -->
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Notes -->
+                    <div class="form-group">
+                        <label class="form-label">Invoice Remarks / Notes</label>
+                        <input type="text" id="billNotes" class="form-control" placeholder="E.g. Paid via PhonePe, Delivery next day, etc.">
+                    </div>
+                </div>
+
+                <!-- Bill Totals & Checkout -->
+                <div class="pos-summary-panel">
+                    <h3 style="font-size:18px;font-weight:800;border-bottom:1px solid var(--border-color);padding-bottom:12px;">
+                        💳 Bill Summary
+                    </h3>
+
+                    <!-- Tax Mode -->
+                    <div class="form-group">
+                        <label class="form-label">Supply Type (GST)</label>
+                        <select id="billTaxState" class="form-control">
+                            <option value="intrastate">Intrastate (Within State - CGST 9% + SGST 9%)</option>
+                            <option value="interstate">Interstate (Out of State - IGST 18%)</option>
+                        </select>
+                    </div>
+
+                    <!-- Discount -->
+                    <div class="form-group">
+                        <label class="form-label">Discount Amount (₹)</label>
+                        <input type="number" id="billDiscount" class="form-control" value="0" min="0" step="1">
+                    </div>
+
+                    <!-- Payment Mode -->
+                    <div class="form-group">
+                        <label class="form-label">Payment Method</label>
+                        <select id="billPaymentMode" class="form-control">
+                            <option value="Cash">💵 Cash</option>
+                            <option value="UPI">📱 UPI (GPay / PhonePe / Paytm)</option>
+                            <option value="Card">💳 Credit / Debit Card</option>
+                            <option value="NetBanking">🏦 Net Banking</option>
+                            <option value="Credit">⏳ On Credit (Pending Payment)</option>
+                        </select>
+                    </div>
+
+                    <!-- Totals Breakdown -->
+                    <div style="background:var(--bg-primary);border:1px solid var(--border-color);border-radius:var(--radius-md);padding:16px;">
+                        <div class="summary-line">
+                            <span>Item Subtotal:</span>
+                            <span id="summarySubtotal">₹0.00</span>
+                        </div>
+                        <div class="summary-line">
+                            <span id="summaryTaxLabel">CGST (9%) + SGST (9%):</span>
+                            <span id="summaryGST">₹0.00</span>
+                        </div>
+                        <div class="summary-line total">
+                            <span>Grand Total:</span>
+                            <span id="summaryGrandTotal">₹0.00</span>
+                        </div>
+                    </div>
+
+                    <!-- Action Buttons -->
+                    <div style="display:flex;flex-direction:column;gap:10px;">
+                        <button class="btn btn-primary" style="padding:14px;font-size:15px;" onclick="VyaparApp.generateBill()" data-mutation-label data-module="billing" data-direct-label="✓ Generate & Print Invoice" data-request-label="Request Invoice Approval">
+                            ✓ Generate & Print Invoice
+                        </button>
+                        <button class="btn btn-secondary" onclick="VyaparApp.resetBill()">
+                            Reset Terminal
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ========================================== -->
+        <!-- TAB 5: INVOICES HISTORY -->
+        <!-- ========================================== -->
+        <div class="tab-pane" id="invoices-tab">
+            <div class="section-header">
+                <div>
+                    <h1 class="section-title">Invoice Ledger & History</h1>
+                    <div class="section-subtitle">Browse all generated tax invoices, view GST breakdown, print slips, and manage payment statuses</div>
+                </div>
+                <div class="quick-actions-bar">
+                    <button class="btn btn-primary" onclick="VyaparApp.switchTab('billing')">+ Create Invoice</button>
+                    <button class="btn btn-secondary" onclick="VyaparApp.exportInvoicesCSV()">📥 Export Invoices CSV</button>
+                </div>
+            </div>
+
+            <!-- Toolbar -->
+            <div class="toolbar">
+                <div class="search-input-wrap">
+                    <span class="search-icon">🔍</span>
+                    <input type="text" id="searchInvoices" class="search-input" placeholder="Search by Invoice ID (INV-2024-001) or Customer Name...">
+                </div>
+                <select id="filterInvoiceStatus" class="filter-select">
+                    <option value="ALL">All Statuses</option>
+                    <option value="Paid">Paid Only</option>
+                    <option value="Pending">Pending / Credit Only</option>
+                </select>
+            </div>
+
+            <!-- Invoices Table -->
+            <div class="table-responsive">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Invoice #</th>
+                            <th>Customer</th>
+                            <th>Date</th>
+                            <th>Payment Mode</th>
+                            <th>GST (₹)</th>
+                            <th>Total (₹)</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="invoicesTableBody">
+                        <!-- Populated by JS -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- ========================================== -->
+        <!-- TAB 6: REPORTS & BUSINESS ANALYTICS -->
+        <!-- ========================================== -->
+        <div class="tab-pane" id="reports-tab">
+            <div class="section-header">
+                <div>
+                    <h1 class="section-title">Reports & GST Analytics</h1>
+                    <div class="section-subtitle">Business intelligence, product sales rankings, and GSTR-1 ready tax reports</div>
+                </div>
+                <div class="quick-actions-bar">
+                    <button class="btn btn-secondary" onclick="VyaparApp.exportInvoicesCSV()">📥 Export Full Sales CSV</button>
+                </div>
+            </div>
+
+            <!-- KPI Cards -->
+            <div class="kpi-grid">
+                <div class="kpi-card">
+                    <div class="kpi-header">
+                        <span class="kpi-title">Gross Sales Revenue</span>
+                        <div class="kpi-icon gold">💰</div>
+                    </div>
+                    <div class="kpi-value" id="repTotalRevenue">₹0.00</div>
+                    <div class="kpi-footer">Lifetime sales generated</div>
+                </div>
+
+                <div class="kpi-card">
+                    <div class="kpi-header">
+                        <span class="kpi-title">Total GST Output</span>
+                        <div class="kpi-icon blue">🏛️</div>
+                    </div>
+                    <div class="kpi-value" id="repTotalGST">₹0.00</div>
+                    <div class="kpi-footer">Tax output for GSTR-1 filing</div>
+                </div>
+
+                <div class="kpi-card">
+                    <div class="kpi-header">
+                        <span class="kpi-title">Realized / Paid Revenue</span>
+                        <div class="kpi-icon green">✅</div>
+                    </div>
+                    <div class="kpi-value" id="repPaidRevenue" style="color:var(--accent-green);">₹0.00</div>
+                    <div class="kpi-footer">Cash/UPI/Card settled</div>
+                </div>
+
+                <div class="kpi-card">
+                    <div class="kpi-header">
+                        <span class="kpi-title">Average Order Value</span>
+                        <div class="kpi-icon gold">📊</div>
+                    </div>
+                    <div class="kpi-value" id="repAvgInvoice">₹0.00</div>
+                    <div class="kpi-footer">Per-invoice average</div>
+                </div>
+            </div>
+
+            <!-- Tables Grid -->
+            <div class="dashboard-grid">
+                <!-- Top Products Table -->
+                <div class="card">
+                    <div class="card-title">
+                        <span>🏆 Top 5 Best-Selling Products</span>
+                    </div>
+                    <div class="table-responsive">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Product</th>
+                                    <th>Units Sold</th>
+                                    <th>Revenue (₹)</th>
+                                    <th>Share</th>
+                                </tr>
+                            </thead>
+                            <tbody id="repTopProductsBody">
+                                <!-- Populated by JS -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- GST Tax Breakdown -->
+                <div class="card">
+                    <div class="card-title">
+                        <span>🏛️ GSTR-1 Tax Summary</span>
+                    </div>
+                    <div class="table-responsive">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Tax Category</th>
+                                    <th>Amount (₹)</th>
+                                </tr>
+                            </thead>
+                            <tbody id="repGSTTableBody">
+                                <!-- Populated by JS -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="tab-pane" id="requests-tab">
+            <div class="section-header">
+                <div>
+                    <h1 class="section-title">Change Requests</h1>
+                    <div class="section-subtitle">Review exact proposed changes and their approval status</div>
+                </div>
+                <button class="btn btn-secondary" onclick="VyaparApp.loadRequestCenter()">Refresh</button>
+            </div>
+            <div class="card" data-staff-only hidden style="margin-bottom:18px;">
+                <div class="card-title"><span>Request Module Access</span></div>
+                <div class="section-subtitle" style="margin-bottom:12px;">Granted modules allow direct changes until an administrator revokes access.</div>
+                <div class="kpi-grid" id="moduleAccessGrid"></div>
+            </div>
+            <div class="card" style="margin-bottom:18px;">
+                <div class="card-title"><span>Module Access Requests</span></div>
+                <div class="table-responsive">
+                    <table>
+                        <thead><tr><th>Request</th><th>Staff</th><th>Module</th><th>Status</th><th>Date</th><th>Actions</th></tr></thead>
+                        <tbody id="accessRequestsBody"></tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="card">
+                <div class="card-title"><span>Individual Change Approvals</span></div>
+                <div class="table-responsive">
+                    <table>
+                        <thead><tr><th>Request</th><th>Staff</th><th>Action</th><th>Proposed Values</th><th>Status</th><th>Actions</th></tr></thead>
+                        <tbody id="changeRequestsBody"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div class="tab-pane" id="staff-tab" data-admin-only hidden>
+            <div class="section-header">
+                <div>
+                    <h1 class="section-title">Staff Access</h1>
+                    <div class="section-subtitle">Create staff accounts, manage module permissions, reset passwords, and revoke access</div>
+                </div>
+            </div>
+            <div class="card" style="margin-bottom:18px;">
+                <div class="card-title"><span>Create Staff Account</span></div>
+                <div class="form-grid">
+                    <div class="form-group"><label class="form-label">Staff Name</label><input class="form-control" id="staffName" type="text"></div>
+                    <div class="form-group"><label class="form-label">Staff Email</label><input class="form-control" id="staffEmail" type="email"></div>
+                    <div class="form-group" style="grid-column:1 / -1;">
+                        <label class="form-label">Temporary Password (Optional)</label>
+                        <input class="form-control" id="staffTemporaryPassword" type="password" minlength="8" maxlength="128" autocomplete="new-password" placeholder="Choose at least 8 characters or leave blank to generate">
+                        <div class="form-hint">The staff member must replace this password at first login.</div>
+                    </div>
+                </div>
+                <button class="btn btn-primary" style="margin-top:14px;" onclick="VyaparApp.createStaff()">Create Staff Account</button>
+            </div>
+            <div class="card">
+                <div class="table-responsive">
+                    <table>
+                        <thead><tr><th>Name</th><th>Email</th><th>Status</th><th>Password</th><th>Last Login</th><th>Module Access</th><th>Actions</th></tr></thead>
+                        <tbody id="staffTableBody"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+    </main>
+</div>
+
+<!-- ========================================== -->
+<!-- MODALS -->
+<!-- ========================================== -->
+
+<!-- Modal: Add / Edit Product -->
+<div class="modal-backdrop" id="modalProduct">
+    <div class="modal-dialog">
+        <div class="modal-header">
+            <h3 class="modal-title" id="modalProductTitle">Add New Product</h3>
+            <button class="modal-close" onclick="VyaparApp.closeModal('modalProduct')">&times;</button>
+        </div>
+        <div class="modal-body">
+            <div class="form-grid">
+                <div class="form-group" style="grid-column: 1 / -1;">
+                    <label class="form-label">Item / Product Name *</label>
+                    <input type="text" id="prodName" class="form-control" placeholder="E.g. Thermal Barcode Scanner">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">HSN Code * (4-8 Digits)</label>
+                    <input type="text" id="prodHSN" class="form-control" placeholder="E.g. 8471">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">SKU Code * (Unique)</label>
+                    <input type="text" id="prodSKU" class="form-control" placeholder="E.g. TBS-001">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Category</label>
+                    <input type="text" id="prodCategory" class="form-control" placeholder="E.g. Hardware, Consumables">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Cost / Purchase Price (₹)</label>
+                    <input type="number" id="prodBuyPrice" class="form-control" placeholder="0.00" step="0.01">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Selling Price (₹) *</label>
+                    <input type="number" id="prodSellPrice" class="form-control" placeholder="0.00" step="0.01">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Opening Stock Quantity</label>
+                    <input type="number" id="prodStock" class="form-control" value="10" min="0">
+                </div>
+            </div>
+            <div id="prodMarginPreview" style="font-size:12px;font-weight:700;"></div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="VyaparApp.closeModal('modalProduct')">Cancel</button>
+            <button class="btn btn-primary" onclick="VyaparApp.saveProductForm()" data-mutation-label data-module="inventory" data-direct-label="Save Product" data-request-label="Request Product Change">Save Product</button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: Add / Edit Customer -->
+<div class="modal-backdrop" id="modalCustomer">
+    <div class="modal-dialog">
+        <div class="modal-header">
+            <h3 class="modal-title" id="modalCustomerTitle">Add New Customer</h3>
+            <button class="modal-close" onclick="VyaparApp.closeModal('modalCustomer')">&times;</button>
+        </div>
+        <div class="modal-body">
+            <div class="form-grid">
+                <div class="form-group" style="grid-column: 1 / -1;">
+                    <label class="form-label">Customer / Business Name *</label>
+                    <input type="text" id="custName" class="form-control" placeholder="E.g. Rahul Gupta (Gupta Supermart)">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Mobile Number *</label>
+                    <input type="text" id="custMobile" class="form-control" placeholder="+91 98765 43210">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Email Address</label>
+                    <input type="email" id="custEmail" class="form-control" placeholder="client@example.com">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">City</label>
+                    <input type="text" id="custCity" class="form-control" placeholder="E.g. Mumbai">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">State</label>
+                    <input type="text" id="custState" class="form-control" placeholder="E.g. Maharashtra">
+                </div>
+                <div class="form-group" style="grid-column: 1 / -1;">
+                    <label class="form-label">GSTIN (15 Digits - Optional)</label>
+                    <input type="text" id="custGSTIN" class="form-control" placeholder="E.g. 27AABCG1234A1Z1">
+                </div>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="VyaparApp.closeModal('modalCustomer')">Cancel</button>
+            <button class="btn btn-primary" onclick="VyaparApp.saveCustomerForm()" data-mutation-label data-module="customers" data-direct-label="Save Customer" data-request-label="Request Customer Change">Save Customer</button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: Settle Payment -->
+<div class="modal-backdrop" id="modalSettlePayment">
+    <div class="modal-dialog" style="max-width:440px;">
+        <div class="modal-header">
+            <h3 class="modal-title">Collect Payment</h3>
+            <button class="modal-close" onclick="VyaparApp.closeModal('modalSettlePayment')">&times;</button>
+        </div>
+        <div class="modal-body">
+            <input type="hidden" id="settleCustomerId">
+            <div>Customer: <strong id="settleCustomerName"></strong></div>
+            <div style="margin-top:6px;">Current Due: <strong id="settleDueAmount" style="color:var(--accent-red);"></strong></div>
+            <div class="form-group" style="margin-top:14px;">
+                <label class="form-label">Amount Received (₹)</label>
+                <input type="number" id="settleAmountInput" class="form-control" step="0.01" min="1">
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="VyaparApp.closeModal('modalSettlePayment')">Cancel</button>
+            <button class="btn btn-success" onclick="VyaparApp.submitSettlePayment()" data-mutation-label data-module="customers" data-direct-label="✓ Record Payment" data-request-label="Request Payment Approval">✓ Record Payment</button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: View & Print GST Tax Invoice -->
+<div class="modal-backdrop" id="modalInvoiceView">
+    <div class="modal-dialog" style="max-width:800px;">
+        <div class="modal-header">
+            <h3 class="modal-title">Tax Invoice Preview</h3>
+            <button class="modal-close" onclick="VyaparApp.closeModal('modalInvoiceView')">&times;</button>
+        </div>
+        <div class="modal-body" style="padding:16px;">
+            <div id="gstInvoicePrintArea">
+                <!-- Populated dynamically by app.js -->
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="VyaparApp.closeModal('modalInvoiceView')">Close</button>
+            <button class="btn btn-primary" onclick="window.print()">🖨️ Print / Download PDF</button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: Administrator Change Review -->
+<div class="modal-backdrop" id="modalRequestReview">
+    <div class="modal-dialog">
+        <div class="modal-header">
+            <h3 class="modal-title" id="requestReviewTitle">Review Change Request</h3>
+            <button class="modal-close" onclick="VyaparApp.closeModal('modalRequestReview')">&times;</button>
+        </div>
+        <div class="modal-body">
+            <p class="section-subtitle" id="requestReviewSummary"></p>
+            <div class="form-group" style="margin-top:14px;">
+                <label class="form-label" for="requestReviewNote">Administrator note (optional)</label>
+                <textarea class="form-control" id="requestReviewNote" maxlength="500" rows="4" placeholder="Add a short note for the audit history"></textarea>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="VyaparApp.closeModal('modalRequestReview')">Cancel</button>
+            <button class="btn btn-success" id="requestReviewSubmit" onclick="VyaparApp.submitRequestReview()">Approve and Apply</button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: Settings & Backend API Configuration -->
+<div class="modal-backdrop" id="modalSettings">
+    <div class="modal-dialog">
+        <div class="modal-header">
+            <h3 class="modal-title">⚙️ Business & Backend Settings</h3>
+            <button class="modal-close" onclick="VyaparApp.closeModal('modalSettings')">&times;</button>
+        </div>
+        <div class="modal-body">
+            <div data-admin-only hidden style="background:var(--bg-tertiary);border:1px solid var(--border-highlight);padding:14px;border-radius:var(--radius-md);">
+                <label class="form-label" style="color:var(--accent-gold);font-weight:700;">📡 Backend REST API URL</label>
+                <div style="display:flex;gap:8px;margin-top:6px;">
+                    <input type="text" id="settingsApiUrl" class="form-control" placeholder="http://localhost:5000/api or https://your-backend.onrender.com/api">
+                    <button type="button" id="btnTestApi" class="btn btn-secondary" onclick="VyaparApp.testApiConnection()">Test</button>
+                </div>
+                <div class="form-hint" style="margin-top:4px;">
+                    Set to your Render URL when deployed (e.g. <code>https://vyapar-backend.onrender.com/api</code>) or <code>http://localhost:5000/api</code> for local development.
+                </div>
+            </div>
+
+            <div class="form-grid">
+                <div class="form-group" style="grid-column: 1 / -1;">
+                    <label class="form-label">Company / Store Name</label>
+                    <input type="text" id="setCompanyName" class="form-control">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Store GSTIN</label>
+                    <input type="text" id="setGSTIN" class="form-control">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Phone Number</label>
+                    <input type="text" id="setPhone" class="form-control">
+                </div>
+                <div class="form-group" style="grid-column: 1 / -1;">
+                    <label class="form-label">Business Address</label>
+                    <input type="text" id="setAddress" class="form-control">
+                </div>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="VyaparApp.closeModal('modalSettings')">Cancel</button>
+            <button class="btn btn-primary" onclick="VyaparApp.saveSettings()" data-mutation-label data-module="settings" data-direct-label="Save Configuration" data-request-label="Request Settings Change">Save Configuration</button>
+        </div>
+    </div>
+</div>
+
+<!-- Toast Container -->
+<div class="toast-container" id="toastContainer"></div>
+
+<script src="config.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,20 @@
+services:
+  - type: web
+    name: vyapar-backend
+    env: node
+    plan: free
+    buildCommand: npm install
+    startCommand: node server.js
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+      - key: INITIAL_ADMIN_NAME
+        value: Vyapar Administrator
+      - key: INITIAL_ADMIN_EMAIL
+        sync: false
+      - key: INITIAL_ADMIN_PASSWORD
+        sync: false
+      - key: INITIAL_ADMIN_PIN
+        sync: false
