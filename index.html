@@ -42,6 +42,12 @@
             <button class="nav-btn" data-tab="reports">
                 <span>📈</span> Reports & GST
             </button>
+            <button class="nav-btn" data-tab="requests">
+                <span>✓</span> Requests <span class="badge badge-pending" id="requestCountBadge" hidden>0</span>
+            </button>
+            <button class="nav-btn" data-tab="staff" data-admin-only hidden>
+                <span>♟</span> Staff
+            </button>
         </nav>
 
         <div class="header-actions">
@@ -52,6 +58,14 @@
             <button class="settings-btn" onclick="VyaparApp.openSettingsModal()">
                 ⚙️ Settings
             </button>
+            <div class="user-menu">
+                <div class="user-identity">
+                    <div class="user-name" id="currentUserName"></div>
+                    <div class="user-role" id="currentUserRole"></div>
+                </div>
+                <button class="settings-btn" onclick="VyaparApp.openPasswordSetup()" title="Change password">Password</button>
+                <button class="settings-btn" onclick="VyaparApp.logout()">Logout</button>
+            </div>
         </div>
     </header>
 
@@ -395,7 +409,7 @@
 
                     <!-- Action Buttons -->
                     <div style="display:flex;flex-direction:column;gap:10px;">
-                        <button class="btn btn-primary" style="padding:14px;font-size:15px;" onclick="VyaparApp.generateBill()">
+                        <button class="btn btn-primary" style="padding:14px;font-size:15px;" onclick="VyaparApp.generateBill()" data-mutation-label data-module="billing" data-direct-label="✓ Generate & Print Invoice" data-request-label="Request Invoice Approval">
                             ✓ Generate & Print Invoice
                         </button>
                         <button class="btn btn-secondary" onclick="VyaparApp.resetBill()">
@@ -555,6 +569,69 @@
             </div>
         </div>
 
+        <div class="tab-pane" id="requests-tab">
+            <div class="section-header">
+                <div>
+                    <h1 class="section-title">Change Requests</h1>
+                    <div class="section-subtitle">Review exact proposed changes and their approval status</div>
+                </div>
+                <button class="btn btn-secondary" onclick="VyaparApp.loadRequestCenter()">Refresh</button>
+            </div>
+            <div class="card" data-staff-only hidden style="margin-bottom:18px;">
+                <div class="card-title"><span>Request Module Access</span></div>
+                <div class="section-subtitle" style="margin-bottom:12px;">Granted modules allow direct changes until an administrator revokes access.</div>
+                <div class="kpi-grid" id="moduleAccessGrid"></div>
+            </div>
+            <div class="card" style="margin-bottom:18px;">
+                <div class="card-title"><span>Module Access Requests</span></div>
+                <div class="table-responsive">
+                    <table>
+                        <thead><tr><th>Request</th><th>Staff</th><th>Module</th><th>Status</th><th>Date</th><th>Actions</th></tr></thead>
+                        <tbody id="accessRequestsBody"></tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="card">
+                <div class="card-title"><span>Individual Change Approvals</span></div>
+                <div class="table-responsive">
+                    <table>
+                        <thead><tr><th>Request</th><th>Staff</th><th>Action</th><th>Proposed Values</th><th>Status</th><th>Actions</th></tr></thead>
+                        <tbody id="changeRequestsBody"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div class="tab-pane" id="staff-tab" data-admin-only hidden>
+            <div class="section-header">
+                <div>
+                    <h1 class="section-title">Staff Access</h1>
+                    <div class="section-subtitle">Create staff accounts, manage module permissions, reset passwords, and revoke access</div>
+                </div>
+            </div>
+            <div class="card" style="margin-bottom:18px;">
+                <div class="card-title"><span>Create Staff Account</span></div>
+                <div class="form-grid">
+                    <div class="form-group"><label class="form-label">Staff Name</label><input class="form-control" id="staffName" type="text"></div>
+                    <div class="form-group"><label class="form-label">Staff Email</label><input class="form-control" id="staffEmail" type="email"></div>
+                    <div class="form-group" style="grid-column:1 / -1;">
+                        <label class="form-label">Temporary Password (Optional)</label>
+                        <input class="form-control" id="staffTemporaryPassword" type="password" minlength="8" maxlength="128" autocomplete="new-password" placeholder="Choose at least 8 characters or leave blank to generate">
+                        <div class="form-hint">The staff member must replace this password at first login.</div>
+                    </div>
+                </div>
+                <button class="btn btn-primary" style="margin-top:14px;" onclick="VyaparApp.createStaff()">Create Staff Account</button>
+            </div>
+            <div class="card">
+                <div class="table-responsive">
+                    <table>
+                        <thead><tr><th>Name</th><th>Email</th><th>Status</th><th>Password</th><th>Last Login</th><th>Module Access</th><th>Actions</th></tr></thead>
+                        <tbody id="staffTableBody"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
     </main>
 </div>
 
@@ -604,7 +681,7 @@
         </div>
         <div class="modal-footer">
             <button class="btn btn-secondary" onclick="VyaparApp.closeModal('modalProduct')">Cancel</button>
-            <button class="btn btn-primary" onclick="VyaparApp.saveProductForm()">Save Product</button>
+            <button class="btn btn-primary" onclick="VyaparApp.saveProductForm()" data-mutation-label data-module="inventory" data-direct-label="Save Product" data-request-label="Request Product Change">Save Product</button>
         </div>
     </div>
 </div>
@@ -646,7 +723,7 @@
         </div>
         <div class="modal-footer">
             <button class="btn btn-secondary" onclick="VyaparApp.closeModal('modalCustomer')">Cancel</button>
-            <button class="btn btn-primary" onclick="VyaparApp.saveCustomerForm()">Save Customer</button>
+            <button class="btn btn-primary" onclick="VyaparApp.saveCustomerForm()" data-mutation-label data-module="customers" data-direct-label="Save Customer" data-request-label="Request Customer Change">Save Customer</button>
         </div>
     </div>
 </div>
@@ -669,7 +746,7 @@
         </div>
         <div class="modal-footer">
             <button class="btn btn-secondary" onclick="VyaparApp.closeModal('modalSettlePayment')">Cancel</button>
-            <button class="btn btn-success" onclick="VyaparApp.submitSettlePayment()">✓ Record Payment</button>
+            <button class="btn btn-success" onclick="VyaparApp.submitSettlePayment()" data-mutation-label data-module="customers" data-direct-label="✓ Record Payment" data-request-label="Request Payment Approval">✓ Record Payment</button>
         </div>
     </div>
 </div>
@@ -693,6 +770,27 @@
     </div>
 </div>
 
+<!-- Modal: Administrator Change Review -->
+<div class="modal-backdrop" id="modalRequestReview">
+    <div class="modal-dialog">
+        <div class="modal-header">
+            <h3 class="modal-title" id="requestReviewTitle">Review Change Request</h3>
+            <button class="modal-close" onclick="VyaparApp.closeModal('modalRequestReview')">&times;</button>
+        </div>
+        <div class="modal-body">
+            <p class="section-subtitle" id="requestReviewSummary"></p>
+            <div class="form-group" style="margin-top:14px;">
+                <label class="form-label" for="requestReviewNote">Administrator note (optional)</label>
+                <textarea class="form-control" id="requestReviewNote" maxlength="500" rows="4" placeholder="Add a short note for the audit history"></textarea>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="VyaparApp.closeModal('modalRequestReview')">Cancel</button>
+            <button class="btn btn-success" id="requestReviewSubmit" onclick="VyaparApp.submitRequestReview()">Approve and Apply</button>
+        </div>
+    </div>
+</div>
+
 <!-- Modal: Settings & Backend API Configuration -->
 <div class="modal-backdrop" id="modalSettings">
     <div class="modal-dialog">
@@ -701,7 +799,7 @@
             <button class="modal-close" onclick="VyaparApp.closeModal('modalSettings')">&times;</button>
         </div>
         <div class="modal-body">
-            <div style="background:var(--bg-tertiary);border:1px solid var(--border-highlight);padding:14px;border-radius:var(--radius-md);">
+            <div data-admin-only hidden style="background:var(--bg-tertiary);border:1px solid var(--border-highlight);padding:14px;border-radius:var(--radius-md);">
                 <label class="form-label" style="color:var(--accent-gold);font-weight:700;">📡 Backend REST API URL</label>
                 <div style="display:flex;gap:8px;margin-top:6px;">
                     <input type="text" id="settingsApiUrl" class="form-control" placeholder="http://localhost:5000/api or https://your-backend.onrender.com/api">
@@ -733,7 +831,7 @@
         </div>
         <div class="modal-footer">
             <button class="btn btn-secondary" onclick="VyaparApp.closeModal('modalSettings')">Cancel</button>
-            <button class="btn btn-primary" onclick="VyaparApp.saveSettings()">Save Configuration</button>
+            <button class="btn btn-primary" onclick="VyaparApp.saveSettings()" data-mutation-label data-module="settings" data-direct-label="Save Configuration" data-request-label="Request Settings Change">Save Configuration</button>
         </div>
     </div>
 </div>
@@ -741,6 +839,7 @@
 <!-- Toast Container -->
 <div class="toast-container" id="toastContainer"></div>
 
+<script src="config.js"></script>
 <script src="app.js"></script>
 </body>
 </html>
