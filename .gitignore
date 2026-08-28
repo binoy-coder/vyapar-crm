@@ -8,8 +8,12 @@ yarn-error.log*
 .env
 .env.local
 
-# Database file (Render will auto-generate or use hosted DB)
-# vyapar.db
+# Runtime databases and test artifacts
+vyapar.db
+*.db-shm
+*.db-wal
+.test-data/
+dist/
 
 # OS Generated
 .DS_Store
