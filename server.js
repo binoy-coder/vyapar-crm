@@ -8,26 +8,39 @@ const express = require('express');
 const cors = require('cors');
 const dotenv = require('dotenv');
 const path = require('path');
-const fs = require('fs');
+const { bootstrapAdmin, createAccessTables, registerAccessControl } = require('./access-control');
 
 dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-// Enable CORS for all origins (Netlify, localhost, Render)
 app.use(cors({
-    origin: '*',
+    // Reflect every request origin so credentialed browser requests remain valid.
+    origin: true,
+    credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'Accept']
+    allowedHeaders: ['Content-Type', 'Accept']
 }));
 
-app.use(express.json());
+app.disable('x-powered-by');
+app.use((req, res, next) => {
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('X-Frame-Options', 'DENY');
+    res.setHeader('Referrer-Policy', 'same-origin');
+    next();
+});
+app.use(express.json({ limit: '100kb' }));
 app.use(express.urlencoded({ extended: true }));
 
-// Serve static frontend files if hosted together
-app.use(express.static(path.join(__dirname, 'public')));
-app.use(express.static(__dirname));
+// Serve only explicit frontend assets. Database and source files stay private.
+app.get(['/', '/index.html'], (req, res) => res.sendFile(path.join(__dirname, 'index.html')));
+app.get('/login.html', (req, res) => res.sendFile(path.join(__dirname, 'login.html')));
+app.get('/staff-login.html', (req, res) => res.sendFile(path.join(__dirname, 'staff-login.html')));
+app.get('/styles.css', (req, res) => res.sendFile(path.join(__dirname, 'styles.css')));
+app.get('/app.js', (req, res) => res.sendFile(path.join(__dirname, 'app.js')));
+app.get('/auth.js', (req, res) => res.sendFile(path.join(__dirname, 'auth.js')));
+app.get('/config.js', (req, res) => res.sendFile(path.join(__dirname, 'config.js')));
 
 // ==========================================================
 // DATABASE ADAPTER LAYER
@@ -73,6 +86,42 @@ const db = {
                 });
             });
         }
+    },
+    async transaction(work) {
+        if (dbType === 'mysql') {
+            const connection = await dbInstance.getConnection();
+            const transactionDb = {
+                async query(sql, params = []) {
+                    const [rows] = await connection.query(sql, params);
+                    return rows;
+                },
+                async get(sql, params = []) {
+                    const [rows] = await connection.query(sql, params);
+                    return rows[0] || null;
+                }
+            };
+            try {
+                await connection.beginTransaction();
+                const result = await work(transactionDb);
+                await connection.commit();
+                return result;
+            } catch (error) {
+                await connection.rollback();
+                throw error;
+            } finally {
+                connection.release();
+            }
+        }
+
+        await db.query('BEGIN IMMEDIATE');
+        try {
+            const result = await work(db);
+            await db.query('COMMIT');
+            return result;
+        } catch (error) {
+            await db.query('ROLLBACK');
+            throw error;
+        }
     }
 };
 
@@ -97,7 +146,9 @@ async function initDatabase() {
             dbInstance = pool;
             console.log('✅ Connected to MySQL Database:', process.env.DB_NAME);
             await createTablesMySQL();
+            await createAccessTables(db, dbType);
             await seedInitialData();
+            await bootstrapAdmin(db);
             return;
         } catch (err) {
             console.warn('⚠️ MySQL connection failed. Falling back to built-in SQLite engine:', err.message);
@@ -107,7 +158,7 @@ async function initDatabase() {
     // Default to SQLite (Zero-configuration, perfect for Render and Local)
     try {
         const sqlite3 = require('sqlite3').verbose();
-        const dbPath = path.join(__dirname, 'vyapar.db');
+        const dbPath = process.env.SQLITE_PATH || path.join(__dirname, 'vyapar.db');
         dbInstance = new sqlite3.Database(dbPath, (err) => {
             if (err) {
                 console.error('❌ Failed to open SQLite database:', err.message);
@@ -117,7 +168,9 @@ async function initDatabase() {
         });
         dbType = 'sqlite';
         await createTablesSQLite();
+        await createAccessTables(db, dbType);
         await seedInitialData();
+        await bootstrapAdmin(db);
     } catch (err) {
         console.error('❌ Fatal error initializing SQLite:', err.message);
     }
@@ -431,6 +484,8 @@ app.get('/api/health', (req, res) => {
         uptime: process.uptime()
     });
 });
+
+registerAccessControl(app, db);
 
 // ----------------------------------------------------------
 // 2. PRODUCTS API (Inventory)
